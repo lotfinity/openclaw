@@ -17,6 +17,7 @@ export function renderTab(state: AppViewState, tab: Tab) {
     <a
       href=${href}
       class="nav-item ${state.tab === tab ? "active" : ""}"
+      data-tour-tab=${tab}
       @click=${(event: MouseEvent) => {
         if (
           event.defaultPrevented ||

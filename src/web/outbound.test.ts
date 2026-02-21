@@ -3,8 +3,12 @@ import { resetLogger, setLoggerOverride } from "../logging.js";
 import { setActiveWebListener } from "./active-listener.js";
 
 const loadWebMediaMock = vi.fn();
+const loadConfigMock = vi.fn(() => ({}));
 vi.mock("./media.js", () => ({
   loadWebMedia: (...args: unknown[]) => loadWebMediaMock(...args),
+}));
+vi.mock("../config/config.js", () => ({
+  loadConfig: () => loadConfigMock(),
 }));
 
 import { sendMessageWhatsApp, sendPollWhatsApp, sendReactionWhatsApp } from "./outbound.js";
@@ -17,6 +21,7 @@ describe("web outbound", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    loadConfigMock.mockReturnValue({});
     setActiveWebListener({
       sendComposingTo,
       sendMessage,
@@ -26,6 +31,7 @@ describe("web outbound", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     resetLogger();
     setLoggerOverride(null);
     setActiveWebListener(null);
@@ -164,6 +170,63 @@ describe("web outbound", () => {
       "✅",
       false,
       undefined,
+    );
+  });
+
+  it("sends text via WAHA without active listener", async () => {
+    setActiveWebListener(null);
+    loadConfigMock.mockReturnValue({
+      channels: {
+        whatsapp: {
+          transport: "waha",
+          waha: { baseUrl: "http://waha.local", session: "default" },
+        },
+      },
+    });
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: "wamid.123" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await sendMessageWhatsApp("+1555", "hi", { verbose: false });
+    expect(result).toEqual({
+      messageId: "wamid.123",
+      toJid: "1555@s.whatsapp.net",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://waha.local/api/sendText",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("sends reactions via WAHA without active listener", async () => {
+    setActiveWebListener(null);
+    loadConfigMock.mockReturnValue({
+      channels: {
+        whatsapp: {
+          transport: "waha",
+          waha: { baseUrl: "http://waha.local", session: "default" },
+        },
+      },
+    });
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await sendReactionWhatsApp("1555@s.whatsapp.net", "msg123", "✅", {
+      verbose: false,
+      fromMe: false,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://waha.local/api/reaction",
+      expect.objectContaining({ method: "PUT" }),
     );
   });
 });

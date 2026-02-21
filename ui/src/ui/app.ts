@@ -104,6 +104,8 @@ function resolveOnboardingMode(): boolean {
 
 @customElement("openclaw-app")
 export class OpenClawApp extends LitElement {
+  @state() startupSplashVisible = true;
+  @state() startupSplashPhase: "sound" | "logo" = "sound";
   @state() settings: UiSettings = loadSettings();
   @state() password = "";
   @state() tab: Tab = "chat";
@@ -343,6 +345,10 @@ export class OpenClawApp extends LitElement {
   private themeMedia: MediaQueryList | null = null;
   private themeMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
   private topbarObserver: ResizeObserver | null = null;
+  private channelsQrTour: { cancel: () => void } | null = null;
+  private startupTimers: number[] = [];
+  private startupAudioContext: AudioContext | null = null;
+  private startupSequenceStarted = false;
 
   createRenderRoot() {
     return this;
@@ -350,6 +356,7 @@ export class OpenClawApp extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.startStartupSequence();
     handleConnected(this as unknown as Parameters<typeof handleConnected>[0]);
   }
 
@@ -358,8 +365,93 @@ export class OpenClawApp extends LitElement {
   }
 
   disconnectedCallback() {
+    this.channelsQrTour?.cancel();
+    this.cancelStartupSequence();
     handleDisconnected(this as unknown as Parameters<typeof handleDisconnected>[0]);
     super.disconnectedCallback();
+  }
+
+  private startStartupSequence() {
+    if (this.startupSequenceStarted) {
+      return;
+    }
+    this.startupSequenceStarted = true;
+    void this.playStartupSoundEffect()
+      .catch(() => undefined)
+      .finally(() => {
+        this.startupSplashPhase = "logo";
+      });
+    this.startupTimers.push(
+      window.setTimeout(() => {
+        this.startupSplashPhase = "logo";
+      }, 380),
+    );
+    this.startupTimers.push(
+      window.setTimeout(() => {
+        this.startupSplashVisible = false;
+      }, 1500),
+    );
+  }
+
+  private cancelStartupSequence() {
+    for (const timer of this.startupTimers) {
+      window.clearTimeout(timer);
+    }
+    this.startupTimers = [];
+    if (this.startupAudioContext) {
+      void this.startupAudioContext.close().catch(() => undefined);
+      this.startupAudioContext = null;
+    }
+  }
+
+  private async playStartupSoundEffect(): Promise<void> {
+    const AudioCtor: typeof AudioContext | undefined =
+      window.AudioContext ??
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtor) {
+      return;
+    }
+    const audio = new AudioCtor();
+    this.startupAudioContext = audio;
+    if (audio.state === "suspended") {
+      await audio.resume();
+    }
+    const now = audio.currentTime + 0.01;
+    const sweep = audio.createOscillator();
+    const sweepGain = audio.createGain();
+    const ping = audio.createOscillator();
+    const pingGain = audio.createGain();
+
+    sweep.type = "sine";
+    sweep.frequency.setValueAtTime(240, now);
+    sweep.frequency.exponentialRampToValueAtTime(520, now + 0.28);
+    sweepGain.gain.setValueAtTime(0.0001, now);
+    sweepGain.gain.exponentialRampToValueAtTime(0.055, now + 0.04);
+    sweepGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+
+    ping.type = "triangle";
+    ping.frequency.setValueAtTime(880, now + 0.22);
+    ping.frequency.exponentialRampToValueAtTime(680, now + 0.44);
+    pingGain.gain.setValueAtTime(0.0001, now + 0.2);
+    pingGain.gain.exponentialRampToValueAtTime(0.035, now + 0.24);
+    pingGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.54);
+
+    sweep.connect(sweepGain);
+    ping.connect(pingGain);
+    sweepGain.connect(audio.destination);
+    pingGain.connect(audio.destination);
+
+    sweep.start(now);
+    sweep.stop(now + 0.36);
+    ping.start(now + 0.2);
+    ping.stop(now + 0.56);
+
+    window.setTimeout(() => {
+      if (this.startupAudioContext === audio) {
+        void audio.close().catch(() => undefined);
+        this.startupAudioContext = null;
+      }
+    }, 900);
   }
 
   protected updated(changed: Map<PropertyKey, unknown>) {
@@ -493,6 +585,126 @@ export class OpenClawApp extends LitElement {
 
   handleNostrProfileToggleAdvanced() {
     handleNostrProfileToggleAdvancedInternal(this);
+  }
+
+  private async waitForTourTarget(selector: string, timeoutMs = 2500): Promise<void> {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      if (document.querySelector(selector)) {
+        return;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
+  }
+
+  async startChannelsQrTutorial() {
+    const ShepherdModule = await import("shepherd.js");
+    const Shepherd = ShepherdModule.default;
+
+    this.channelsQrTour?.cancel();
+
+    const tour = new Shepherd.Tour({
+      useModalOverlay: true,
+      defaultStepOptions: {
+        classes: "shepherd-theme-default",
+        scrollTo: { behavior: "smooth", block: "center" },
+        cancelIcon: {
+          enabled: true,
+        },
+      },
+    });
+    this.channelsQrTour = tour;
+    const clearTour = () => {
+      if (this.channelsQrTour === tour) {
+        this.channelsQrTour = null;
+      }
+    };
+    tour.on("complete", clearTour);
+    tour.on("cancel", clearTour);
+
+    const ensureChannelsTab = async () => {
+      if (this.tab !== "channels") {
+        this.setTab("channels");
+        await this.updateComplete;
+      }
+      await this.waitForTourTarget('[data-tour="whatsapp-card"]');
+    };
+    const resolveTarget = (selector: string) => document.querySelector(selector);
+
+    tour.addStep({
+      id: "channels-nav",
+      title: "Open Channels",
+      text: "Use the Channels tab to manage account linking across messaging platforms.",
+      attachTo: {
+        element: () => resolveTarget('[data-tour-tab="channels"]'),
+        on: "right",
+      },
+      buttons: [
+        {
+          text: "Skip",
+          action: () => tour.cancel(),
+        },
+        {
+          text: "Next",
+          action: () => tour.next(),
+        },
+      ],
+    });
+
+    tour.addStep({
+      id: "whatsapp-show-qr",
+      title: "Generate WhatsApp QR",
+      text: "Inside Channels, open WhatsApp and click Show QR to generate a pairing code.",
+      beforeShowPromise: ensureChannelsTab,
+      attachTo: {
+        element: () =>
+          resolveTarget('[data-tour="whatsapp-show-qr"]') ??
+          resolveTarget('[data-tour="whatsapp-card"]'),
+        on: "bottom",
+      },
+      buttons: [
+        {
+          text: "Back",
+          action: () => tour.back(),
+        },
+        {
+          text: "Next",
+          action: () => tour.next(),
+        },
+      ],
+    });
+
+    tour.addStep({
+      id: "whatsapp-qr",
+      title: "Scan This QR",
+      text: "The QR appears in this area. Scan it from WhatsApp on your phone to link the account.",
+      beforeShowPromise: async () => {
+        await ensureChannelsTab();
+        if (!this.whatsappQrDataUrl && this.connected && !this.whatsappBusy) {
+          await this.handleWhatsAppStart(false).catch(() => undefined);
+          await this.updateComplete;
+        }
+      },
+      attachTo: {
+        element: () =>
+          resolveTarget('[data-tour="whatsapp-qr"]') ??
+          resolveTarget('[data-tour="whatsapp-show-qr"]') ??
+          resolveTarget('[data-tour="whatsapp-card"]'),
+        on: "top",
+      },
+      buttons: [
+        {
+          text: "Back",
+          action: () => tour.back(),
+        },
+        {
+          text: "Done",
+          action: () => tour.complete(),
+        },
+      ],
+    });
+
+    tour.start();
   }
 
   async handleExecApprovalDecision(decision: "allow-once" | "allow-always" | "deny") {

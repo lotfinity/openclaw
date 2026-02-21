@@ -10,11 +10,21 @@ import {
 } from "./zod-schema.core.js";
 
 const ToolPolicyBySenderSchema = z.record(z.string(), ToolPolicySchema).optional();
+const WhatsAppWahaSchema = z
+  .object({
+    baseUrl: z.string().optional(),
+    apiKey: z.string().optional(),
+    session: z.string().optional(),
+  })
+  .strict()
+  .optional();
 
 export const WhatsAppAccountSchema = z
   .object({
     name: z.string().optional(),
+    transport: z.enum(["baileys", "waha"]).optional(),
     capabilities: z.array(z.string()).optional(),
+    waha: WhatsAppWahaSchema,
     markdown: MarkdownConfigSchema,
     configWrites: z.boolean().optional(),
     enabled: z.boolean().optional(),
@@ -79,7 +89,9 @@ export const WhatsAppAccountSchema = z
 export const WhatsAppConfigSchema = z
   .object({
     accounts: z.record(z.string(), WhatsAppAccountSchema.optional()).optional(),
+    transport: z.enum(["baileys", "waha"]).optional(),
     capabilities: z.array(z.string()).optional(),
+    waha: WhatsAppWahaSchema,
     markdown: MarkdownConfigSchema,
     configWrites: z.boolean().optional(),
     sendReadReceipts: z.boolean().optional(),

@@ -12,7 +12,7 @@ export function renderWhatsAppCard(params: {
   const { props, whatsapp, accountCountLabel } = params;
 
   return html`
-    <div class="card">
+    <div class="card" data-tour="whatsapp-card">
       <div class="card-title">WhatsApp</div>
       <div class="card-sub">Link WhatsApp Web and monitor connection health.</div>
       ${accountCountLabel}
@@ -72,7 +72,7 @@ export function renderWhatsAppCard(params: {
 
       ${
         props.whatsappQrDataUrl
-          ? html`<div class="qr-wrap">
+          ? html`<div class="qr-wrap" data-tour="whatsapp-qr">
             <img src=${props.whatsappQrDataUrl} alt="WhatsApp QR" />
           </div>`
           : nothing
@@ -81,6 +81,7 @@ export function renderWhatsAppCard(params: {
       <div class="row" style="margin-top: 14px; flex-wrap: wrap;">
         <button
           class="btn primary"
+          data-tour="whatsapp-show-qr"
           ?disabled=${props.whatsappBusy}
           @click=${() => props.onWhatsAppStart(false)}
         >

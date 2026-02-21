@@ -113,10 +113,7 @@ export function renderNode(params: {
   const key = pathKey(path);
 
   if (unsupported.has(key)) {
-    return html`<div class="cfg-field cfg-field--error">
-      <div class="cfg-field__label">${label}</div>
-      <div class="cfg-field__error">Unsupported schema node. Use Raw mode.</div>
-    </div>`;
+    return nothing;
   }
 
   // Handle anyOf/oneOf unions
@@ -283,12 +280,7 @@ export function renderNode(params: {
   }
 
   // Fallback
-  return html`
-    <div class="cfg-field cfg-field--error">
-      <div class="cfg-field__label">${label}</div>
-      <div class="cfg-field__error">Unsupported type: ${type}. Use Raw mode.</div>
-    </div>
-  `;
+  return nothing;
 }
 
 function renderTextInput(params: {
@@ -590,12 +582,7 @@ function renderArray(params: {
 
   const itemsSchema = Array.isArray(schema.items) ? schema.items[0] : schema.items;
   if (!itemsSchema) {
-    return html`
-      <div class="cfg-field cfg-field--error">
-        <div class="cfg-field__label">${label}</div>
-        <div class="cfg-field__error">Unsupported array schema. Use Raw mode.</div>
-      </div>
-    `;
+    return nothing;
   }
 
   const arr = Array.isArray(value) ? value : Array.isArray(schema.default) ? schema.default : [];

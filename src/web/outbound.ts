@@ -7,8 +7,15 @@ import { convertMarkdownTables } from "../markdown/tables.js";
 import { markdownToWhatsApp } from "../markdown/whatsapp.js";
 import { normalizePollInput, type PollInput } from "../polls.js";
 import { toWhatsappJid } from "../utils.js";
+import { resolveWhatsAppAccount } from "./accounts.js";
 import { type ActiveWebSendOptions, requireActiveWebListener } from "./active-listener.js";
 import { loadWebMedia } from "./media.js";
+import {
+  sendMediaViaWaha,
+  sendPollViaWaha,
+  sendReactionViaWaha,
+  sendTextViaWaha,
+} from "./transports/waha/client.js";
 
 const outboundLog = createSubsystemLogger("gateway/channels/whatsapp").child("outbound");
 
@@ -25,10 +32,9 @@ export async function sendMessageWhatsApp(
   let text = body;
   const correlationId = randomUUID();
   const startedAt = Date.now();
-  const { listener: active, accountId: resolvedAccountId } = requireActiveWebListener(
-    options.accountId,
-  );
   const cfg = loadConfig();
+  const account = resolveWhatsAppAccount({ cfg, accountId: options.accountId });
+  const resolvedAccountId = account.accountId;
   const tableMode = resolveMarkdownTableMode({
     cfg,
     channel: "whatsapp",
@@ -68,20 +74,28 @@ export async function sendMessageWhatsApp(
     }
     outboundLog.info(`Sending message -> ${jid}${options.mediaUrl ? " (media)" : ""}`);
     logger.info({ jid, hasMedia: Boolean(options.mediaUrl) }, "sending message");
-    await active.sendComposingTo(to);
-    const hasExplicitAccountId = Boolean(options.accountId?.trim());
-    const accountId = hasExplicitAccountId ? resolvedAccountId : undefined;
-    const sendOptions: ActiveWebSendOptions | undefined =
-      options.gifPlayback || accountId || documentFileName
-        ? {
-            ...(options.gifPlayback ? { gifPlayback: true } : {}),
-            ...(documentFileName ? { fileName: documentFileName } : {}),
-            accountId,
-          }
-        : undefined;
-    const result = sendOptions
-      ? await active.sendMessage(to, text, mediaBuffer, mediaType, sendOptions)
-      : await active.sendMessage(to, text, mediaBuffer, mediaType);
+    const result =
+      account.transport === "waha"
+        ? mediaBuffer && mediaType
+          ? await sendMediaViaWaha(account, to, text, mediaBuffer, mediaType, documentFileName)
+          : await sendTextViaWaha(account, to, text)
+        : await (async () => {
+            const { listener: active } = requireActiveWebListener(options.accountId);
+            await active.sendComposingTo(to);
+            const hasExplicitAccountId = Boolean(options.accountId?.trim());
+            const accountId = hasExplicitAccountId ? resolvedAccountId : undefined;
+            const sendOptions: ActiveWebSendOptions | undefined =
+              options.gifPlayback || accountId || documentFileName
+                ? {
+                    ...(options.gifPlayback ? { gifPlayback: true } : {}),
+                    ...(documentFileName ? { fileName: documentFileName } : {}),
+                    accountId,
+                  }
+                : undefined;
+            return sendOptions
+              ? await active.sendMessage(to, text, mediaBuffer, mediaType, sendOptions)
+              : await active.sendMessage(to, text, mediaBuffer, mediaType);
+          })();
     const messageId = (result as { messageId?: string })?.messageId ?? "unknown";
     const durationMs = Date.now() - startedAt;
     outboundLog.info(
@@ -110,7 +124,8 @@ export async function sendReactionWhatsApp(
   },
 ): Promise<void> {
   const correlationId = randomUUID();
-  const { listener: active } = requireActiveWebListener(options.accountId);
+  const cfg = loadConfig();
+  const account = resolveWhatsAppAccount({ cfg, accountId: options.accountId });
   const logger = getChildLogger({
     module: "web-outbound",
     correlationId,
@@ -121,13 +136,18 @@ export async function sendReactionWhatsApp(
     const jid = toWhatsappJid(chatJid);
     outboundLog.info(`Sending reaction "${emoji}" -> message ${messageId}`);
     logger.info({ chatJid: jid, messageId, emoji }, "sending reaction");
-    await active.sendReaction(
-      chatJid,
-      messageId,
-      emoji,
-      options.fromMe ?? false,
-      options.participant,
-    );
+    if (account.transport === "waha") {
+      await sendReactionViaWaha(account, messageId, emoji);
+    } else {
+      const { listener: active } = requireActiveWebListener(options.accountId);
+      await active.sendReaction(
+        chatJid,
+        messageId,
+        emoji,
+        options.fromMe ?? false,
+        options.participant,
+      );
+    }
     outboundLog.info(`Sent reaction "${emoji}" -> message ${messageId}`);
     logger.info({ chatJid: jid, messageId, emoji }, "sent reaction");
   } catch (err) {
@@ -146,7 +166,8 @@ export async function sendPollWhatsApp(
 ): Promise<{ messageId: string; toJid: string }> {
   const correlationId = randomUUID();
   const startedAt = Date.now();
-  const { listener: active } = requireActiveWebListener(options.accountId);
+  const cfg = loadConfig();
+  const account = resolveWhatsAppAccount({ cfg, accountId: options.accountId });
   const logger = getChildLogger({
     module: "web-outbound",
     correlationId,
@@ -165,7 +186,10 @@ export async function sendPollWhatsApp(
       },
       "sending poll",
     );
-    const result = await active.sendPoll(to, normalized);
+    const result =
+      account.transport === "waha"
+        ? await sendPollViaWaha(account, to, normalized)
+        : await requireActiveWebListener(options.accountId).listener.sendPoll(to, normalized);
     const messageId = (result as { messageId?: string })?.messageId ?? "unknown";
     const durationMs = Date.now() - startedAt;
     outboundLog.info(`Sent poll ${messageId} -> ${jid} (${durationMs}ms)`);

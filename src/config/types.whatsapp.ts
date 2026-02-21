@@ -14,11 +14,26 @@ export type WhatsAppActionConfig = {
   polls?: boolean;
 };
 
+export type WhatsAppTransportId = "baileys" | "waha";
+
+export type WhatsAppWahaConfig = {
+  /** WAHA base URL (for example: http://127.0.0.1:3000). */
+  baseUrl?: string;
+  /** Optional WAHA API key/token used for Authorization. */
+  apiKey?: string;
+  /** Optional WAHA session name/id. */
+  session?: string;
+};
+
 export type WhatsAppConfig = {
   /** Optional per-account WhatsApp configuration (multi-account). */
   accounts?: Record<string, WhatsAppAccountConfig>;
+  /** WhatsApp backend transport implementation. Default: "baileys". */
+  transport?: WhatsAppTransportId;
   /** Optional provider capability tags used for agent/runtime guidance. */
   capabilities?: string[];
+  /** WAHA transport configuration. */
+  waha?: WhatsAppWahaConfig;
   /** Markdown formatting overrides (tables). */
   markdown?: MarkdownConfig;
   /** Allow channel-initiated config writes (default: true). */
@@ -105,8 +120,12 @@ export type WhatsAppConfig = {
 export type WhatsAppAccountConfig = {
   /** Optional display name for this account (used in CLI/UI lists). */
   name?: string;
+  /** WhatsApp backend transport implementation for this account (overrides channel-level). */
+  transport?: WhatsAppTransportId;
   /** Optional provider capability tags used for agent/runtime guidance. */
   capabilities?: string[];
+  /** WAHA transport configuration for this account (overrides channel-level). */
+  waha?: WhatsAppWahaConfig;
   /** Markdown formatting overrides (tables). */
   markdown?: MarkdownConfig;
   /** Allow channel-initiated config writes (default: true). */

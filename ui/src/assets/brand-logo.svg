@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" role="img" aria-label="OpenClaw mark">
+  <g fill="none" stroke="#5DA78B" stroke-linecap="round" stroke-width="10">
+    <path d="M20 20c8 0 8 12 16 12s8-12 16-12 8 12 16 12 8-12 16-12 8 12 16 12 8-12 16-12 8 12 16 12 8-12 16-12"/>
+  </g>
+  <circle cx="12" cy="20" r="10" fill="#5DA78B"/>
+  <circle cx="148" cy="20" r="10" fill="#5DA78B"/>
+</svg>

@@ -15,7 +15,7 @@ import { resolveAgentRoute } from "../../routing/resolve-route.js";
 import { defaultRuntime, type RuntimeEnv } from "../../runtime.js";
 import { resolveWhatsAppAccount } from "../accounts.js";
 import { setActiveWebListener } from "../active-listener.js";
-import { monitorWebInbox } from "../inbound.js";
+import { monitorWahaInbox, monitorWebInbox } from "../inbound.js";
 import {
   computeBackoff,
   newConnectionId,
@@ -33,7 +33,7 @@ import { isLikelyWhatsAppCryptoError } from "./util.js";
 
 export async function monitorWebChannel(
   verbose: boolean,
-  listenerFactory: typeof monitorWebInbox | undefined = monitorWebInbox,
+  listenerFactory: typeof monitorWebInbox | undefined,
   keepAlive = true,
   replyResolver: typeof getReplyFromConfig | undefined = getReplyFromConfig,
   runtime: RuntimeEnv = defaultRuntime,
@@ -67,6 +67,8 @@ export async function monitorWebChannel(
     cfg: baseCfg,
     accountId: tuning.accountId,
   });
+  const effectiveListenerFactory =
+    listenerFactory ?? (account.transport === "waha" ? monitorWahaInbox : monitorWebInbox);
   const cfg = {
     ...baseCfg,
     channels: {
@@ -189,7 +191,7 @@ export async function monitorWebChannel(
       return !hasControlCommand(msg.body, cfg);
     };
 
-    const listener = await (listenerFactory ?? monitorWebInbox)({
+    const listener = await effectiveListenerFactory({
       verbose,
       accountId: account.accountId,
       authDir: account.authDir,
@@ -260,7 +262,7 @@ export async function monitorWebChannel(
         backgroundTasks.clear();
       }
       try {
-        await listener.close();
+        await listener.close?.();
       } catch (err) {
         logVerbose(`Socket close failed: ${formatError(err)}`);
       }
@@ -335,7 +337,7 @@ export async function monitorWebChannel(
     }
 
     const reason = await Promise.race([
-      listener.onClose?.catch((err) => {
+      listener.onClose?.catch((err: unknown) => {
         reconnectLogger.error({ error: formatError(err) }, "listener.onClose rejected");
         return { status: 500, isLoggedOut: false, error: err };
       }) ?? waitForever(),

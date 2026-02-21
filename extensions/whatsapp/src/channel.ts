@@ -99,15 +99,23 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
     },
     isEnabled: (account, cfg) => account.enabled && cfg.web?.enabled !== false,
     disabledReason: () => "disabled",
-    isConfigured: async (account) =>
-      await getWhatsAppRuntime().channel.whatsapp.webAuthExists(account.authDir),
-    unconfiguredReason: () => "not linked",
+    isConfigured: async (account) => {
+      if (account.transport === "waha") {
+        return Boolean(account.waha?.baseUrl?.trim());
+      }
+      return await getWhatsAppRuntime().channel.whatsapp.webAuthExists(account.authDir);
+    },
+    unconfiguredReason: (account) =>
+      account.transport === "waha" ? "missing channels.whatsapp.waha.baseUrl" : "not linked",
     describeAccount: (account) => ({
       accountId: account.accountId,
       name: account.name,
+      transport: account.transport,
       enabled: account.enabled,
-      configured: Boolean(account.authDir),
-      linked: Boolean(account.authDir),
+      configured:
+        account.transport === "waha" ? Boolean(account.waha?.baseUrl) : Boolean(account.authDir),
+      linked:
+        account.transport === "waha" ? Boolean(account.waha?.baseUrl) : Boolean(account.authDir),
       dmPolicy: account.dmPolicy,
       allowFrom: account.allowFrom,
     }),
@@ -370,9 +378,12 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
         return { ok: false, reason: "whatsapp-disabled" };
       }
       const account = resolveWhatsAppAccount({ cfg, accountId });
-      const authExists = await (
-        deps?.webAuthExists ?? getWhatsAppRuntime().channel.whatsapp.webAuthExists
-      )(account.authDir);
+      const authExists =
+        account.transport === "waha"
+          ? Boolean(account.waha?.baseUrl?.trim())
+          : await (deps?.webAuthExists ?? getWhatsAppRuntime().channel.whatsapp.webAuthExists)(
+              account.authDir,
+            );
       if (!authExists) {
         return { ok: false, reason: "whatsapp-not-linked" };
       }
@@ -400,22 +411,28 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
     },
     collectStatusIssues: collectWhatsAppStatusIssues,
     buildChannelSummary: async ({ account, snapshot }) => {
+      const isWaha = account.transport === "waha";
       const authDir = account.authDir;
       const linked =
         typeof snapshot.linked === "boolean"
           ? snapshot.linked
-          : authDir
-            ? await getWhatsAppRuntime().channel.whatsapp.webAuthExists(authDir)
-            : false;
+          : isWaha
+            ? Boolean(account.waha?.baseUrl?.trim())
+            : authDir
+              ? await getWhatsAppRuntime().channel.whatsapp.webAuthExists(authDir)
+              : false;
       const authAgeMs =
-        linked && authDir ? getWhatsAppRuntime().channel.whatsapp.getWebAuthAgeMs(authDir) : null;
+        !isWaha && linked && authDir
+          ? getWhatsAppRuntime().channel.whatsapp.getWebAuthAgeMs(authDir)
+          : null;
       const self =
-        linked && authDir
+        !isWaha && linked && authDir
           ? getWhatsAppRuntime().channel.whatsapp.readWebSelfId(authDir)
           : { e164: null, jid: null };
       return {
         configured: linked,
         linked,
+        transport: account.transport,
         authAgeMs,
         self,
         running: snapshot.running ?? false,
@@ -429,10 +446,14 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
       };
     },
     buildAccountSnapshot: async ({ account, runtime }) => {
-      const linked = await getWhatsAppRuntime().channel.whatsapp.webAuthExists(account.authDir);
+      const linked =
+        account.transport === "waha"
+          ? Boolean(account.waha?.baseUrl?.trim())
+          : await getWhatsAppRuntime().channel.whatsapp.webAuthExists(account.authDir);
       return {
         accountId: account.accountId,
         name: account.name,
+        transport: account.transport,
         enabled: account.enabled,
         configured: true,
         linked,
@@ -450,6 +471,10 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
     },
     resolveAccountState: ({ configured }) => (configured ? "linked" : "not linked"),
     logSelfId: ({ account, runtime, includeChannelPrefix }) => {
+      if (account.transport === "waha") {
+        runtime.log?.(`WhatsApp account ${account.accountId} uses WAHA transport.`);
+        return;
+      }
       getWhatsAppRuntime().channel.whatsapp.logWebSelfId(
         account.authDir,
         runtime,
@@ -460,9 +485,18 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
   gateway: {
     startAccount: async (ctx) => {
       const account = ctx.account;
-      const { e164, jid } = getWhatsAppRuntime().channel.whatsapp.readWebSelfId(account.authDir);
-      const identity = e164 ? e164 : jid ? `jid ${jid}` : "unknown";
-      ctx.log?.info(`[${account.accountId}] starting provider (${identity})`);
+      const identity =
+        account.transport === "waha"
+          ? "WAHA"
+          : (() => {
+              const { e164, jid } = getWhatsAppRuntime().channel.whatsapp.readWebSelfId(
+                account.authDir,
+              );
+              return e164 ? e164 : jid ? `jid ${jid}` : "unknown";
+            })();
+      ctx.log?.info(
+        `[${account.accountId}] starting provider (${identity}, transport=${account.transport})`,
+      );
       return getWhatsAppRuntime().channel.whatsapp.monitorWebChannel(
         getWhatsAppRuntime().logging.shouldLogVerbose(),
         undefined,

@@ -36,6 +36,8 @@ import type { NostrProfileFormState } from "./views/channels.nostr-profile-form.
 import type { SessionLogEntry } from "./views/usage.ts";
 
 export type AppViewState = {
+  startupSplashVisible: boolean;
+  startupSplashPhase: "sound" | "logo";
   settings: UiSettings;
   password: string;
   tab: Tab;
@@ -231,6 +233,7 @@ export type AppViewState = {
   handleWhatsAppStart: (force: boolean) => Promise<void>;
   handleWhatsAppWait: () => Promise<void>;
   handleWhatsAppLogout: () => Promise<void>;
+  startChannelsQrTutorial: () => Promise<void>;
   handleChannelConfigSave: () => Promise<void>;
   handleChannelConfigReload: () => Promise<void>;
   handleNostrProfileEdit: (accountId: string, profile: NostrProfile | null) => void;

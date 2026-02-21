@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Saira:wght@300;400;500;600;700;800&family=Titillium+Web:ital,wght@0,200;0,300;0,400;0,600;0,700;0,900;1,200;1,300;1,400;1,600;1,700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
   /* Background - Warmer dark with depth */
@@ -35,17 +35,18 @@
   --border-strong: #3f3f46;
   --border-hover: #52525b;
   --input: #27272a;
-  --ring: #ff5c5c;
+  --ring: #5da78b;
 
-  /* Accent - Punchy signature red */
-  --accent: #ff5c5c;
-  --accent-hover: #ff7070;
-  --accent-muted: #ff5c5c;
-  --accent-subtle: rgba(255, 92, 92, 0.15);
+  /* Accent */
+  --accent: #5da78b;
+  --accent-hover: #74b89d;
+  --accent-muted: #5da78b;
+  --accent-subtle: rgba(93, 167, 139, 0.16);
   --accent-foreground: #fafafa;
-  --accent-glow: rgba(255, 92, 92, 0.25);
-  --primary: #ff5c5c;
+  --accent-glow: rgba(93, 167, 139, 0.26);
+  --primary: #5da78b;
   --primary-foreground: #ffffff;
+  --icon: #5da78b;
 
   /* Secondary - Teal accent for variety */
   --secondary: #1e2028;
@@ -69,7 +70,7 @@
   --info: #3b82f6;
 
   /* Focus - With glow */
-  --focus: rgba(255, 92, 92, 0.25);
+  --focus: rgba(93, 167, 139, 0.25);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring), 0 0 20px var(--accent-glow);
 
@@ -80,12 +81,12 @@
   --theme-switch-x: 50%;
   --theme-switch-y: 50%;
 
-  /* Typography - Space Grotesk for personality */
+  /* Typography */
   --mono:
     "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
-  --font-body: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display:
-    "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-title: "Saira", sans-serif;
 
   /* Shadows - Richer with subtle color */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -146,14 +147,15 @@
   --border-hover: #a1a1aa;
   --input: #e4e4e7;
 
-  --accent: #dc2626;
-  --accent-hover: #ef4444;
-  --accent-muted: #dc2626;
-  --accent-subtle: rgba(220, 38, 38, 0.12);
+  --accent: #5da78b;
+  --accent-hover: #74b89d;
+  --accent-muted: #5da78b;
+  --accent-subtle: rgba(93, 167, 139, 0.15);
   --accent-foreground: #ffffff;
-  --accent-glow: rgba(220, 38, 38, 0.15);
-  --primary: #dc2626;
+  --accent-glow: rgba(93, 167, 139, 0.18);
+  --primary: #5da78b;
   --primary-foreground: #ffffff;
+  --icon: #5da78b;
 
   --secondary: #f4f4f5;
   --secondary-foreground: #3f3f46;
@@ -174,7 +176,7 @@
   --danger-subtle: rgba(220, 38, 38, 0.1);
   --info: #2563eb;
 
-  --focus: rgba(220, 38, 38, 0.2);
+  --focus: rgba(93, 167, 139, 0.2);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring), 0 0 16px var(--accent-glow);
 
   --grid-line: rgba(0, 0, 0, 0.05);
@@ -187,6 +189,34 @@
   --shadow-glow: 0 0 24px var(--accent-glow);
 
   color-scheme: light;
+}
+
+:is(
+  .brand-title,
+  .page-title,
+  .card-title,
+  .note-title,
+  .list-title,
+  .exec-approval-title,
+  .agent-title,
+  .agent-file-title,
+  .agent-tool-title,
+  .sidebar-title,
+  .config-sidebar__title,
+  .config-section-hero__title,
+  .config-section-card__title,
+  .cfg-object__title,
+  .usage-page-title,
+  .usage-header-title,
+  .usage-mosaic-title,
+  .usage-mosaic-section-title,
+  .usage-summary-title,
+  .session-detail-title,
+  .session-summary-title,
+  .context-breakdown-title,
+  .sessions-panel-title
+) {
+  font-family: var(--font-title);
 }
 
 * {

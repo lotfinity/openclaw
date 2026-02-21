@@ -22,19 +22,189 @@ export type OverviewProps = {
   onRefresh: () => void;
 };
 
+function isAuthFailureState(
+  props: Pick<OverviewProps, "connected" | "lastError" | "hello" | "settings" | "password">,
+): boolean {
+  if (props.connected) {
+    return false;
+  }
+
+  const lower = props.lastError?.toLowerCase() ?? "";
+  const credentialAuthFailure =
+    lower.includes("unauthorized") ||
+    lower.includes("connect failed") ||
+    lower.includes("auth failed") ||
+    lower.includes("invalid token") ||
+    lower.includes("invalid password") ||
+    lower.includes("forbidden") ||
+    lower.includes("401") ||
+    lower.includes("403");
+  const pairingRequired =
+    lower.includes("pairing required") || lower.includes("device identity required");
+  if (credentialAuthFailure || pairingRequired) {
+    return true;
+  }
+
+  if (!props.lastError) {
+    const hasHello = Boolean(props.hello);
+    const hasToken = Boolean(props.settings.token.trim());
+    const hasPassword = Boolean(props.password.trim());
+    // First-run/offline path: no successful handshake and no credentials entered yet.
+    return !props.connected && !hasHello && !hasToken && !hasPassword;
+  }
+
+  return false;
+}
+
+export function renderGatewayAccessForm(props: OverviewProps) {
+  return html`
+    <div class="form-grid" style="margin-top: 16px;">
+      <label class="field">
+        <span>WebSocket URL</span>
+        <input
+          .value=${props.settings.gatewayUrl}
+          @input=${(e: Event) => {
+            const v = (e.target as HTMLInputElement).value;
+            props.onSettingsChange({ ...props.settings, gatewayUrl: v });
+          }}
+          placeholder="ws://100.x.y.z:18789"
+        />
+      </label>
+      <label class="field">
+        <span>Dashboard Token</span>
+        <input
+          .value=${props.settings.token}
+          @input=${(e: Event) => {
+            const v = (e.target as HTMLInputElement).value;
+            props.onSettingsChange({ ...props.settings, token: v });
+          }}
+          placeholder="OPENCLAW_GATEWAY_TOKEN"
+        />
+      </label>
+      <label class="field">
+        <span>Password (not stored)</span>
+        <input
+          type="password"
+          .value=${props.password}
+          @input=${(e: Event) => {
+            const v = (e.target as HTMLInputElement).value;
+            props.onPasswordChange(v);
+          }}
+          placeholder="system or shared password"
+        />
+      </label>
+      <label class="field">
+        <span>Default Session Key</span>
+        <input
+          .value=${props.settings.sessionKey}
+          @input=${(e: Event) => {
+            const v = (e.target as HTMLInputElement).value;
+            props.onSessionKeyChange(v);
+          }}
+        />
+      </label>
+    </div>
+    <div class="row" style="margin-top: 14px;">
+      <button class="btn" @click=${() => props.onConnect()}>Connect</button>
+      <button class="btn" @click=${() => props.onRefresh()}>Refresh</button>
+      <span class="muted">Click Connect to apply connection changes.</span>
+    </div>
+  `;
+}
+
+export function renderGatewayAuthRequiredModal(props: OverviewProps) {
+  if (!isAuthFailureState(props)) {
+    return null;
+  }
+  const lower = props.lastError?.toLowerCase() ?? "";
+  const pairingRequired =
+    lower.includes("pairing required") || lower.includes("device identity required");
+
+  const insecureContextHint = (() => {
+    const isSecureContext = typeof window !== "undefined" ? window.isSecureContext : true;
+    if (isSecureContext || !props.lastError) {
+      return null;
+    }
+    const lower = props.lastError.toLowerCase();
+    if (!lower.includes("secure context") && !lower.includes("device identity required")) {
+      return null;
+    }
+    return html`
+      <div class="muted" style="margin-top: 12px">
+        This page is HTTP, so the browser blocks device identity. Use HTTPS (Tailscale Serve) or open
+        <span class="mono">http://127.0.0.1:18789</span> on the gateway host.
+      </div>
+    `;
+  })();
+
+  return html`
+    <div class="exec-approval-overlay" role="dialog" aria-modal="true" aria-live="polite">
+      <div class="exec-approval-card">
+        <div class="exec-approval-header">
+          <div>
+            <div class="exec-approval-title">Whatsynaptic Dash Access Required</div>
+            <div class="exec-approval-sub">
+              ${
+                pairingRequired
+                  ? "Device approval is pending. Keep this open and click Connect after approving the device."
+                  : "Welcome to Whatsynaptic! To get started, input credentials and click Connect below."
+              }
+            </div>
+          </div>
+        </div>
+        ${renderGatewayAccessForm(props)}
+        ${
+          props.lastError
+            ? html`<div class="callout danger" style="margin-top: 14px;">
+                ${
+                  pairingRequired
+                    ? html`
+                        <div class="callout-status-row">
+                          <span class="callout-spinner" aria-hidden="true"></span>
+                          <span>One last step ! Ask a previously authenticated user to approve this node </span>
+                        </div>
+                      `
+                    : html`
+                        <div class="callout-status-row">
+                          <span class="callout-spinner" aria-hidden="true"></span>
+                          <span
+                            >To ensure users' security and privacy, a dashboard token or password is needed to access. If
+                            you have it, paste it where it fits and click Connect !</span
+                          >
+                        </div>
+                      `
+                }
+              </div>`
+            : null
+        }
+        ${insecureContextHint ?? ""}
+      </div>
+    </div>
+  `;
+}
+
 export function renderOverview(props: OverviewProps) {
   const snapshot = props.hello?.snapshot as
     | { uptimeMs?: number; policy?: { tickIntervalMs?: number } }
     | undefined;
   const uptime = snapshot?.uptimeMs ? formatDurationHuman(snapshot.uptimeMs) : "n/a";
   const tick = snapshot?.policy?.tickIntervalMs ? `${snapshot.policy.tickIntervalMs}ms` : "n/a";
+  const showAuthModal = isAuthFailureState(props);
   const authHint = (() => {
-    if (props.connected || !props.lastError) {
+    if (!showAuthModal || !props.lastError) {
       return null;
     }
     const lower = props.lastError.toLowerCase();
-    const authFailed = lower.includes("unauthorized") || lower.includes("connect failed");
-    if (!authFailed) {
+    const credentialAuthFailure =
+      lower.includes("unauthorized") ||
+      lower.includes("connect failed") ||
+      lower.includes("auth failed") ||
+      lower.includes("invalid token") ||
+      lower.includes("invalid password") ||
+      lower.includes("forbidden") ||
+      lower.includes("401") ||
+      lower.includes("403");
+    if (!credentialAuthFailure) {
       return null;
     }
     const hasToken = Boolean(props.settings.token.trim());
@@ -124,57 +294,16 @@ export function renderOverview(props: OverviewProps) {
       <div class="card">
         <div class="card-title">Gateway Access</div>
         <div class="card-sub">Where the dashboard connects and how it authenticates.</div>
-        <div class="form-grid" style="margin-top: 16px;">
-          <label class="field">
-            <span>WebSocket URL</span>
-            <input
-              .value=${props.settings.gatewayUrl}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSettingsChange({ ...props.settings, gatewayUrl: v });
-              }}
-              placeholder="ws://100.x.y.z:18789"
-            />
-          </label>
-          <label class="field">
-            <span>Gateway Token</span>
-            <input
-              .value=${props.settings.token}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSettingsChange({ ...props.settings, token: v });
-              }}
-              placeholder="OPENCLAW_GATEWAY_TOKEN"
-            />
-          </label>
-          <label class="field">
-            <span>Password (not stored)</span>
-            <input
-              type="password"
-              .value=${props.password}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onPasswordChange(v);
-              }}
-              placeholder="system or shared password"
-            />
-          </label>
-          <label class="field">
-            <span>Default Session Key</span>
-            <input
-              .value=${props.settings.sessionKey}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSessionKeyChange(v);
-              }}
-            />
-          </label>
-        </div>
-        <div class="row" style="margin-top: 14px;">
-          <button class="btn" @click=${() => props.onConnect()}>Connect</button>
-          <button class="btn" @click=${() => props.onRefresh()}>Refresh</button>
-          <span class="muted">Click Connect to apply connection changes.</span>
-        </div>
+        ${renderGatewayAccessForm(props)}
+        ${
+          props.lastError && !showAuthModal
+            ? html`<div class="callout danger" style="margin-top: 14px;">
+                <div>${props.lastError}</div>
+                ${authHint ?? ""}
+                ${insecureContextHint ?? ""}
+              </div>`
+            : null
+        }
       </div>
 
       <div class="card">
@@ -202,19 +331,9 @@ export function renderOverview(props: OverviewProps) {
             </div>
           </div>
         </div>
-        ${
-          props.lastError
-            ? html`<div class="callout danger" style="margin-top: 14px;">
-              <div>${props.lastError}</div>
-              ${authHint ?? ""}
-              ${insecureContextHint ?? ""}
-            </div>`
-            : html`
-                <div class="callout" style="margin-top: 14px">
-                  Use Channels to link WhatsApp, Telegram, Discord, Signal, or iMessage.
-                </div>
-              `
-        }
+        <div class="callout" style="margin-top: 14px">
+          Use Channels to link WhatsApp, Telegram, Discord, Signal, or iMessage.
+        </div>
       </div>
     </section>
 
@@ -258,5 +377,6 @@ export function renderOverview(props: OverviewProps) {
         </div>
       </div>
     </section>
+
   `;
 }

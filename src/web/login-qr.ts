@@ -15,6 +15,8 @@ import {
   waitForWaConnection,
   webAuthExists,
 } from "./session.js";
+import { assertBaileysTransport } from "./transports/guard.js";
+import { startWahaLoginWithQr, waitForWahaLogin } from "./transports/waha/login.js";
 
 type WaSocket = Awaited<ReturnType<typeof createWaSocket>>;
 
@@ -117,6 +119,16 @@ export async function startWebLoginWithQr(
   const runtime = opts.runtime ?? defaultRuntime;
   const cfg = loadConfig();
   const account = resolveWhatsAppAccount({ cfg, accountId: opts.accountId });
+  if (account.transport === "waha") {
+    return await startWahaLoginWithQr({
+      account,
+      timeoutMs: opts.timeoutMs,
+      force: opts.force,
+      runtime,
+      verbose: opts.verbose,
+    });
+  }
+  assertBaileysTransport(account.transport, "QR login");
   const hasWeb = await webAuthExists(account.authDir);
   const selfId = readWebSelfId(account.authDir);
   if (hasWeb && !opts.force) {
@@ -219,6 +231,14 @@ export async function waitForWebLogin(
   const runtime = opts.runtime ?? defaultRuntime;
   const cfg = loadConfig();
   const account = resolveWhatsAppAccount({ cfg, accountId: opts.accountId });
+  if (account.transport === "waha") {
+    return await waitForWahaLogin({
+      account,
+      timeoutMs: opts.timeoutMs,
+      runtime,
+    });
+  }
+  assertBaileysTransport(account.transport, "QR login wait");
   const activeLogin = activeLogins.get(account.accountId);
   if (!activeLogin) {
     return {

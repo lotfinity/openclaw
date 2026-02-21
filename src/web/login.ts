@@ -5,7 +5,9 @@ import { danger, info, success } from "../globals.js";
 import { logInfo } from "../logger.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { resolveWhatsAppAccount } from "./accounts.js";
+import { startWebLoginWithQr, waitForWebLogin } from "./login-qr.js";
 import { createWaSocket, formatError, logoutWeb, waitForWaConnection } from "./session.js";
+import { assertBaileysTransport } from "./transports/guard.js";
 
 export async function loginWeb(
   verbose: boolean,
@@ -16,6 +18,28 @@ export async function loginWeb(
   const wait = waitForConnection ?? waitForWaConnection;
   const cfg = loadConfig();
   const account = resolveWhatsAppAccount({ cfg, accountId });
+  if (account.transport === "waha") {
+    const start = await startWebLoginWithQr({
+      verbose,
+      timeoutMs: 30_000,
+      force: false,
+      accountId: account.accountId,
+      runtime,
+    });
+    if (start.message) {
+      runtime.log(start.message);
+    }
+    const result = await waitForWebLogin({
+      timeoutMs: 120_000,
+      accountId: account.accountId,
+      runtime,
+    });
+    if (!result.connected) {
+      throw new Error(result.message);
+    }
+    return;
+  }
+  assertBaileysTransport(account.transport, "QR login");
   const sock = await createWaSocket(true, verbose, {
     authDir: account.authDir,
   });

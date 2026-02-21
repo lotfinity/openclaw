@@ -138,6 +138,7 @@ import {
   webAuthExists,
 } from "../../web/auth-store.js";
 import { loadWebMedia } from "../../web/media.js";
+import { resolveWhatsAppTransportId } from "../../web/transports/index.js";
 import { formatNativeDependencyHint } from "./native-deps.js";
 
 let cachedVersion: string | null = null;
@@ -389,6 +390,7 @@ export function createPluginRuntime(): PluginRuntime {
         loginWeb: loginWebLazy,
         startWebLoginWithQr: startWebLoginWithQrLazy,
         waitForWebLogin: waitForWebLoginLazy,
+        resolveTransportId: resolveWhatsAppTransportId,
         monitorWebChannel: monitorWebChannelLazy,
         handleWhatsAppAction: handleWhatsAppActionLazy,
         createLoginTool: createWhatsAppLoginTool,

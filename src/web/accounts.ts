@@ -1,14 +1,23 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
-import type { DmPolicy, GroupPolicy, WhatsAppAccountConfig } from "../config/types.js";
+import type {
+  DmPolicy,
+  GroupPolicy,
+  WhatsAppAccountConfig,
+  WhatsAppWahaConfig,
+} from "../config/types.js";
+import type { WhatsAppTransportId } from "./transports/types.js";
 import { resolveOAuthDir } from "../config/paths.js";
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "../routing/session-key.js";
 import { resolveUserPath } from "../utils.js";
 import { hasWebCredsSync } from "./auth-store.js";
+import { resolveWhatsAppTransportId } from "./transports/index.js";
 
 export type ResolvedWhatsAppAccount = {
   accountId: string;
+  transport: WhatsAppTransportId;
+  waha?: WhatsAppWahaConfig;
   name?: string;
   enabled: boolean;
   sendReadReceipts: boolean;
@@ -147,6 +156,8 @@ export function resolveWhatsAppAccount(params: {
   });
   return {
     accountId,
+    transport: resolveWhatsAppTransportId(params.cfg, accountId),
+    waha: accountCfg?.waha ?? rootCfg?.waha,
     name: accountCfg?.name?.trim() || undefined,
     enabled,
     sendReadReceipts: accountCfg?.sendReadReceipts ?? rootCfg?.sendReadReceipts ?? true,

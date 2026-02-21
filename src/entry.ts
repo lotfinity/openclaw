@@ -17,7 +17,7 @@ if (process.argv.includes("--no-color")) {
   process.env.FORCE_COLOR = "0";
 }
 
-const EXPERIMENTAL_WARNING_FLAG = "--disable-warning=ExperimentalWarning";
+const EXPERIMENTAL_WARNING_FLAG = "--no-warnings";
 
 function hasExperimentalWarningSuppressed(): boolean {
   const nodeOptions = process.env.NODE_OPTIONS ?? "";

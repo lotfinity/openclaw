@@ -6,6 +6,10 @@ import type {
   PendingDevice,
 } from "../controllers/devices.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "../controllers/exec-approvals.ts";
+import androidLogo from "../../assets/os/android.svg";
+import linuxLogo from "../../assets/os/linux.svg";
+import macosLogo from "../../assets/os/macos.svg";
+import windowsLogo from "../../assets/os/windows.svg";
 import { formatRelativeTimestamp, formatList } from "../format.ts";
 import { renderExecApprovals, resolveExecApprovalsState } from "./nodes-exec-approvals.ts";
 export type NodesProps = {
@@ -79,6 +83,12 @@ function renderDevices(props: NodesProps) {
   const list = props.devicesList ?? { pending: [], paired: [] };
   const pending = Array.isArray(list.pending) ? list.pending : [];
   const paired = Array.isArray(list.paired) ? list.paired : [];
+  const connectedNodeIds = new Set(
+    props.nodes
+      .filter((node) => node && node.connected === true)
+      .map((node) => (typeof node.nodeId === "string" ? node.nodeId : ""))
+      .filter(Boolean),
+  );
   return html`
     <section class="card">
       <div class="row" style="justify-content: space-between;">
@@ -100,7 +110,9 @@ function renderDevices(props: NodesProps) {
           pending.length > 0
             ? html`
               <div class="muted" style="margin-bottom: 8px;">Pending</div>
-              ${pending.map((req) => renderPendingDevice(req, props))}
+              <div class="device-list">
+                ${pending.map((req) => renderPendingDevice(req, props))}
+              </div>
             `
             : nothing
         }
@@ -108,7 +120,9 @@ function renderDevices(props: NodesProps) {
           paired.length > 0
             ? html`
               <div class="muted" style="margin-top: 12px; margin-bottom: 8px;">Paired</div>
-              ${paired.map((device) => renderPairedDevice(device, props))}
+              <div class="device-list">
+                ${paired.map((device) => renderPairedDevice(device, props, connectedNodeIds))}
+              </div>
             `
             : nothing
         }
@@ -125,22 +139,40 @@ function renderDevices(props: NodesProps) {
 }
 
 function renderPendingDevice(req: PendingDevice, props: NodesProps) {
-  const name = req.displayName?.trim() || req.deviceId;
+  const name =
+    req.displayName?.trim() || resolveClientLabel(req.clientMode, req.clientId) || req.deviceId;
   const age = typeof req.ts === "number" ? formatRelativeTimestamp(req.ts) : "n/a";
-  const role = req.role?.trim() ? `role: ${req.role}` : "role: -";
-  const repair = req.isRepair ? " · repair" : "";
-  const ip = req.remoteIp ? ` · ${req.remoteIp}` : "";
+  const role = req.role?.trim() || "n/a";
+  const client = resolveClientSummary(req.clientMode, req.clientId);
+  const platform = req.platform?.trim() || "n/a";
   return html`
-    <div class="list-item">
+    <div class="list-item device-item">
       <div class="list-main">
         <div class="list-title">${name}</div>
-        <div class="list-sub">${req.deviceId}${ip}</div>
-        <div class="muted" style="margin-top: 6px;">
-          ${role} · requested ${age}${repair}
+        <div class="list-sub device-id-row">${req.deviceId}</div>
+        <div class="chip-row device-chip-row">
+          <span class="chip chip-warn">Pending approval</span>
+          ${renderPlatformBadge(platform)}
+          ${
+            req.isRepair
+              ? html`
+                  <span class="chip">Repair request</span>
+                `
+              : nothing
+          }
+        </div>
+        <div class="device-meta-grid">
+          <div class="device-meta-row"><span>Role</span><span>${role}</span></div>
+          <div class="device-meta-row"><span>Client</span><span>${client}</span></div>
+          <div class="device-meta-row"><span>Platform</span><span>${platform}</span></div>
+          <div class="device-meta-row"><span>Requested</span><span>${age}</span></div>
+          <div class="device-meta-row">
+            <span>Remote IP</span><span>${req.remoteIp?.trim() || "n/a"}</span>
+          </div>
         </div>
       </div>
       <div class="list-meta">
-        <div class="row" style="justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+        <div class="row device-actions-row">
           <button class="btn btn--sm primary" @click=${() => props.onDeviceApprove(req.requestId)}>
             Approve
           </button>
@@ -153,26 +185,54 @@ function renderPendingDevice(req: PendingDevice, props: NodesProps) {
   `;
 }
 
-function renderPairedDevice(device: PairedDevice, props: NodesProps) {
-  const name = device.displayName?.trim() || device.deviceId;
-  const ip = device.remoteIp ? ` · ${device.remoteIp}` : "";
-  const roles = `roles: ${formatList(device.roles)}`;
-  const scopes = `scopes: ${formatList(device.scopes)}`;
+function renderPairedDevice(
+  device: PairedDevice,
+  props: NodesProps,
+  connectedNodeIds: Set<string>,
+) {
+  const name =
+    device.displayName?.trim() ||
+    resolveClientLabel(device.clientMode, device.clientId) ||
+    device.deviceId;
   const tokens = Array.isArray(device.tokens) ? device.tokens : [];
+  const roles = formatList(device.roles);
+  const scopes = formatList(device.scopes);
+  const client = resolveClientSummary(device.clientMode, device.clientId);
+  const platform = device.platform?.trim() || "n/a";
+  const approved = formatRelativeTimestamp(device.approvedAtMs ?? null);
+  const added = formatRelativeTimestamp(device.createdAtMs ?? null);
+  const lastActivity = formatRelativeTimestamp(getDeviceLastActivityMs(device) ?? null);
+  const connected = connectedNodeIds.has(device.deviceId);
   return html`
-    <div class="list-item">
+    <div class="list-item device-item">
       <div class="list-main">
         <div class="list-title">${name}</div>
-        <div class="list-sub">${device.deviceId}${ip}</div>
-        <div class="muted" style="margin-top: 6px;">${roles} · ${scopes}</div>
+        <div class="list-sub device-id-row">${device.deviceId}</div>
+        <div class="chip-row device-chip-row">
+          <span class="chip ${connected ? "chip-ok" : "chip-warn"}">
+            ${connected ? "Connected" : "Offline"}
+          </span>
+          ${renderPlatformBadge(platform)}
+        </div>
+        <div class="device-meta-grid">
+          <div class="device-meta-row"><span>Client</span><span>${client}</span></div>
+          <div class="device-meta-row"><span>Roles</span><span>${roles}</span></div>
+          <div class="device-meta-row"><span>Scopes</span><span>${scopes}</span></div>
+          <div class="device-meta-row"><span>Approved</span><span>${approved}</span></div>
+          <div class="device-meta-row"><span>Added</span><span>${added}</span></div>
+          <div class="device-meta-row"><span>Last activity</span><span>${lastActivity}</span></div>
+          <div class="device-meta-row">
+            <span>Remote IP</span><span>${device.remoteIp?.trim() || "n/a"}</span>
+          </div>
+        </div>
         ${
           tokens.length === 0
             ? html`
-                <div class="muted" style="margin-top: 6px">Tokens: none</div>
+                <div class="device-token-empty">No role tokens yet.</div>
               `
             : html`
-              <div class="muted" style="margin-top: 10px;">Tokens</div>
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+              <div class="device-token-title">Role tokens</div>
+              <div class="device-token-list">
                 ${tokens.map((token) => renderTokenRow(device.deviceId, token, props))}
               </div>
             `
@@ -184,14 +244,21 @@ function renderPairedDevice(device: PairedDevice, props: NodesProps) {
 
 function renderTokenRow(deviceId: string, token: DeviceTokenSummary, props: NodesProps) {
   const status = token.revokedAtMs ? "revoked" : "active";
-  const scopes = `scopes: ${formatList(token.scopes)}`;
+  const scopes = formatList(token.scopes);
   const when = formatRelativeTimestamp(
     token.rotatedAtMs ?? token.createdAtMs ?? token.lastUsedAtMs ?? null,
   );
   return html`
-    <div class="row" style="justify-content: space-between; gap: 8px;">
-      <div class="list-sub">${token.role} · ${status} · ${scopes} · ${when}</div>
-      <div class="row" style="justify-content: flex-end; gap: 6px; flex-wrap: wrap;">
+    <div class="device-token-row">
+      <div class="device-token-info">
+        <div class="chip-row">
+          <span class="chip">${token.role}</span>
+          <span class="chip ${status === "active" ? "chip-ok" : "chip-danger"}">${status}</span>
+          <span class="chip">${when}</span>
+        </div>
+        <div class="device-token-scopes">Scopes: ${scopes}</div>
+      </div>
+      <div class="row device-actions-row">
         <button
           class="btn btn--sm"
           @click=${() => props.onDeviceRotate(deviceId, token.role, token.scopes)}
@@ -212,6 +279,100 @@ function renderTokenRow(deviceId: string, token: DeviceTokenSummary, props: Node
         }
       </div>
     </div>
+  `;
+}
+
+function resolveClientLabel(clientMode?: string, clientId?: string) {
+  const mode = (clientMode ?? "").trim().toLowerCase();
+  const id = (clientId ?? "").trim();
+  const idLower = id.toLowerCase();
+  if (mode === "webchat" || idLower.includes("control-ui")) {
+    return "Browser session";
+  }
+  if (mode === "cli") {
+    return "CLI session";
+  }
+  if (mode === "node") {
+    return "Node client";
+  }
+  if (id) {
+    return id;
+  }
+  return null;
+}
+
+function resolveClientSummary(clientMode?: string, clientId?: string) {
+  const mode = (clientMode ?? "").trim();
+  const id = (clientId ?? "").trim();
+  if (mode && id) {
+    return `${mode} (${id})`;
+  }
+  return mode || id || "n/a";
+}
+
+function getDeviceLastActivityMs(device: PairedDevice): number | null {
+  const tokens = Array.isArray(device.tokens) ? device.tokens : [];
+  const values = tokens.flatMap((token) =>
+    [token.lastUsedAtMs, token.rotatedAtMs, token.createdAtMs].filter(
+      (value): value is number => typeof value === "number" && Number.isFinite(value),
+    ),
+  );
+  if (values.length === 0) {
+    return null;
+  }
+  return Math.max(...values);
+}
+
+function normalizePlatform(platform?: string): "linux" | "macos" | "windows" | "android" | "other" {
+  const value = (platform ?? "").trim().toLowerCase();
+  if (value.includes("linux")) {
+    return "linux";
+  }
+  if (value.includes("mac") || value.includes("darwin") || value.includes("osx")) {
+    return "macos";
+  }
+  if (value.includes("win")) {
+    return "windows";
+  }
+  if (value.includes("android")) {
+    return "android";
+  }
+  return "other";
+}
+
+function renderPlatformBadge(platform: string) {
+  const normalized = normalizePlatform(platform);
+  const label =
+    normalized === "linux"
+      ? "Linux"
+      : normalized === "macos"
+        ? "macOS"
+        : normalized === "windows"
+          ? "Windows"
+          : normalized === "android"
+            ? "Android"
+            : platform || "Unknown";
+  const logoSrc =
+    normalized === "linux"
+      ? linuxLogo
+      : normalized === "macos"
+        ? macosLogo
+        : normalized === "windows"
+          ? windowsLogo
+          : normalized === "android"
+            ? androidLogo
+            : null;
+  return html`
+    <span class="chip">
+      ${
+        logoSrc
+          ? html`<img class="platform-logo" src=${logoSrc} alt=${`${label} logo`} loading="lazy" />`
+          : html`
+              <span class="platform-logo platform-logo--fallback" aria-hidden="true">•</span>
+            `
+      }
+      ${label}
+    </span>
   `;
 }
 

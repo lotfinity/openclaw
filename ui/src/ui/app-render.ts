@@ -1,6 +1,7 @@
 import { html, nothing } from "lit";
 import type { AppViewState } from "./app-view-state.ts";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
+import brandLogo from "../assets/brand-logo.gif";
 import { refreshChatAvatar } from "./app-chat.ts";
 import { renderUsageTab } from "./app-render-usage-tab.ts";
 import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers.ts";
@@ -51,7 +52,7 @@ import {
   updateSkillEnabled,
 } from "./controllers/skills.ts";
 import { icons } from "./icons.ts";
-import { normalizeBasePath, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
+import { TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
 import { renderAgents } from "./views/agents.ts";
 import { renderChannels } from "./views/channels.ts";
 import { renderChat } from "./views/chat.ts";
@@ -63,7 +64,7 @@ import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.t
 import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
 import { renderNodes } from "./views/nodes.ts";
-import { renderOverview } from "./views/overview.ts";
+import { renderGatewayAuthRequiredModal, renderOverview } from "./views/overview.ts";
 import { renderSessions } from "./views/sessions.ts";
 import { renderSkills } from "./views/skills.ts";
 
@@ -98,16 +99,57 @@ export function renderApp(state: AppViewState) {
   const chatAvatarUrl = state.chatAvatarUrl ?? assistantAvatarUrl ?? null;
   const configValue =
     state.configForm ?? (state.configSnapshot?.config as Record<string, unknown> | null);
-  const basePath = normalizeBasePath(state.basePath ?? "");
   const resolvedAgentId =
     state.agentsSelectedId ??
     state.agentsList?.defaultId ??
     state.agentsList?.agents?.[0]?.id ??
     null;
+  const topbarVideoSrc = "/media/startup.mp4";
 
   return html`
+    ${
+      state.startupSplashVisible
+        ? html`
+            <div class="startup-overlay" aria-hidden="true">
+              <video
+                class="startup-bg-video"
+                src="/media/startup.mp4"
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="auto"
+              ></video>
+              <div class="startup-card startup-card--${state.startupSplashPhase}">
+                <div class="startup-audio-visualizer" aria-hidden="true">
+                  <span class="startup-audio-bar"></span>
+                  <span class="startup-audio-bar"></span>
+                  <span class="startup-audio-bar"></span>
+                  <span class="startup-audio-bar"></span>
+                </div>
+                <div class="startup-logo-wrap">
+                  <img class="startup-logo" src=${brandLogo} alt="" />
+                  <div class="startup-brand">WHATSYNAPTIC</div>
+                </div>
+              </div>
+            </div>
+          `
+        : nothing
+    }
     <div class="shell ${isChat ? "shell--chat" : ""} ${chatFocus ? "shell--chat-focus" : ""} ${state.settings.navCollapsed ? "shell--nav-collapsed" : ""} ${state.onboarding ? "shell--onboarding" : ""}">
       <header class="topbar">
+        <div class="topbar-video-layer" aria-hidden="true">
+          <video
+            class="topbar-video"
+            src=${topbarVideoSrc}
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="auto"
+          ></video>
+          <div class="topbar-video-scrim"></div>
+        </div>
         <div class="topbar-left">
           <button
             class="nav-collapse-toggle"
@@ -123,15 +165,22 @@ export function renderApp(state: AppViewState) {
           </button>
           <div class="brand">
             <div class="brand-logo">
-              <img src=${basePath ? `${basePath}/favicon.svg` : "/favicon.svg"} alt="OpenClaw" />
+              <img src=${brandLogo} alt="OpenClaw" />
             </div>
             <div class="brand-text">
-              <div class="brand-title">OPENCLAW</div>
-              <div class="brand-sub">Gateway Dashboard</div>
+              <div class="brand-title">WHATSYNAPTIC</div>
+              <div class="brand-sub">Smarts Meets Arts</div>
             </div>
           </div>
         </div>
         <div class="topbar-status">
+          <button
+            class="btn btn--sm"
+            @click=${() => void state.startChannelsQrTutorial()}
+            title="Guide to WhatsApp QR linking"
+          >
+            WhatsApp Guide
+          </button>
           <div class="pill">
             <span class="statusDot ${state.connected ? "ok" : ""}"></span>
             <span>Health</span>
@@ -943,6 +992,33 @@ export function renderApp(state: AppViewState) {
             : nothing
         }
       </main>
+      ${renderGatewayAuthRequiredModal({
+        connected: state.connected,
+        hello: state.hello,
+        settings: state.settings,
+        password: state.password,
+        lastError: state.lastError,
+        presenceCount,
+        sessionsCount,
+        cronEnabled: state.cronStatus?.enabled ?? null,
+        cronNext,
+        lastChannelsRefresh: state.channelsLastSuccess,
+        onSettingsChange: (next) => state.applySettings(next),
+        onPasswordChange: (next) => (state.password = next),
+        onSessionKeyChange: (next) => {
+          state.sessionKey = next;
+          state.chatMessage = "";
+          state.resetToolStream();
+          state.applySettings({
+            ...state.settings,
+            sessionKey: next,
+            lastActiveSessionKey: next,
+          });
+          void state.loadAssistantIdentity();
+        },
+        onConnect: () => state.connect(),
+        onRefresh: () => state.loadOverview(),
+      })}
       ${renderExecApprovalPrompt(state)}
       ${renderGatewayUrlConfirmation(state)}
     </div>
