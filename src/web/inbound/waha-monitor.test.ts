@@ -23,6 +23,16 @@ vi.mock("../../media/store.js", () => ({
   })),
 }));
 
+function toFetchUrl(input: string | URL | Request): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  return input.url;
+}
+
 // Shared helper: spin up a WS server, send one event, collect inbound messages
 async function runWsTest(
   eventPayload: unknown,
@@ -160,7 +170,7 @@ describe("monitorWahaInbox", () => {
     const mediaBase64 = Buffer.from("fakepng").toString("base64");
     const originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+      const url = toFetchUrl(input);
       if (url.includes("/media/")) {
         return new Response(Buffer.from(mediaBase64, "base64"), {
           status: 200,
@@ -238,7 +248,7 @@ describe("monitorWahaInbox", () => {
   it("rewrites WAHA media URL host/port to configured base URL host/port", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+      const url = toFetchUrl(input);
       if (!url.includes("/media/rewrite.png")) {
         return new Response("not found", { status: 404 });
       }
@@ -318,7 +328,7 @@ describe("monitorWahaInbox", () => {
   it("pins /api/files media URLs to configured WAHA base host", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+      const url = toFetchUrl(input);
       if (!url.includes("/api/files/default/some-audio.oga")) {
         return new Response("not found", { status: 404 });
       }
@@ -398,7 +408,7 @@ describe("monitorWahaInbox", () => {
   it("preserves media type when WAHA media URL fetch fails", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
+      const url = toFetchUrl(input);
       if (url.includes("/media/")) {
         return new Response("missing", { status: 502, statusText: "Bad Gateway" });
       }

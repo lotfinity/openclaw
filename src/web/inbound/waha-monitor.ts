@@ -1,5 +1,4 @@
 import type { AnyMessageContent } from "@whiskeysockets/baileys";
-import WebSocket from "ws";
 import type { ActiveWebListener } from "../active-listener.js";
 import type { WebInboundMessage, WebListenerCloseReason } from "./types.js";
 import { loadConfig } from "../../config/config.js";
@@ -339,6 +338,22 @@ function resolveWahaMediaPlaceholder(
   return "<media>";
 }
 
+function decodeWsMessageData(data: unknown): string | null {
+  if (typeof data === "string") {
+    return data;
+  }
+  if (Buffer.isBuffer(data)) {
+    return data.toString("utf8");
+  }
+  if (data instanceof ArrayBuffer) {
+    return Buffer.from(data).toString("utf8");
+  }
+  if (Array.isArray(data) && data.every((part) => Buffer.isBuffer(part))) {
+    return Buffer.concat(data).toString("utf8");
+  }
+  return null;
+}
+
 export async function monitorWahaInbox(options: {
   verbose: boolean;
   accountId: string;
@@ -405,7 +420,11 @@ export async function monitorWahaInbox(options: {
   ws.on("message", async (data) => {
     let eventEnvelope: WahaEventEnvelope | null = null;
     try {
-      eventEnvelope = JSON.parse(String(data)) as WahaEventEnvelope;
+      const text = decodeWsMessageData(data);
+      if (!text) {
+        return;
+      }
+      eventEnvelope = JSON.parse(text) as WahaEventEnvelope;
     } catch {
       return;
     }
