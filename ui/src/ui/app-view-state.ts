@@ -117,10 +117,25 @@ export type AppViewState = {
   whatsappLoginMessage: string | null;
   whatsappLoginQrDataUrl: string | null;
   whatsappLoginConnected: boolean | null;
+  whatsappRequestCodePhone: string;
+  whatsappScreenshotDataUrl: string | null;
   whatsappBusy: boolean;
   nostrProfileFormState: NostrProfileFormState | null;
   nostrProfileAccountId: string | null;
   configFormDirty: boolean;
+  websiteAssistChatConversationId: string;
+  websiteAssistChatMessages: Array<{
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+    createdAt: number;
+  }>;
+  websiteAssistChatInput: string;
+  websiteAssistChatSending: boolean;
+  websiteAssistMediaSending: boolean;
+  websiteAssistChatRefreshing: boolean;
+  websiteAssistChatError: string | null;
+  websiteAssistChatMinimized: boolean;
   presenceLoading: boolean;
   presenceEntries: PresenceEntry[];
   presenceError: string | null;
@@ -233,6 +248,9 @@ export type AppViewState = {
   handleWhatsAppStart: (force: boolean) => Promise<void>;
   handleWhatsAppWait: () => Promise<void>;
   handleWhatsAppLogout: () => Promise<void>;
+  handleWhatsAppRequestCode: (phoneNumber: string) => Promise<void>;
+  handleWhatsAppScreenshot: () => Promise<void>;
+  handleWhatsAppScreenshotClose: () => void;
   startChannelsQrTutorial: () => Promise<void>;
   handleChannelConfigSave: () => Promise<void>;
   handleChannelConfigReload: () => Promise<void>;
@@ -242,6 +260,11 @@ export type AppViewState = {
   handleNostrProfileSave: () => Promise<void>;
   handleNostrProfileImport: () => Promise<void>;
   handleNostrProfileToggleAdvanced: () => void;
+  handleWebsiteAssistChatInputChange: (value: string) => void;
+  handleWebsiteAssistChatSend: () => Promise<void>;
+  handleWebsiteAssistChatRefresh: () => Promise<void>;
+  handleWebsiteAssistChatToggleMinimize: () => void;
+  handleWebsiteAssistChatClose: () => void;
   handleExecApprovalDecision: (decision: "allow-once" | "allow-always" | "deny") => Promise<void>;
   handleGatewayUrlConfirm: () => void;
   handleGatewayUrlCancel: () => void;

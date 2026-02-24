@@ -29,7 +29,14 @@ import type {
   NostrProfile,
 } from "./types.ts";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form.ts";
+import type { WebsiteAssistConfigState } from "./views/channels.website-assist.ts";
+import type {
+  WebsiteWidgetFormState,
+  WebsiteWidgetProbeState,
+} from "./views/channels.website-widget.ts";
 import {
+  createDefaultWebsiteWidgetForm,
+  createDefaultWebsiteWidgetProbe,
   handleChannelConfigReload as handleChannelConfigReloadInternal,
   handleChannelConfigSave as handleChannelConfigSaveInternal,
   handleNostrProfileCancel as handleNostrProfileCancelInternal,
@@ -38,7 +45,24 @@ import {
   handleNostrProfileImport as handleNostrProfileImportInternal,
   handleNostrProfileSave as handleNostrProfileSaveInternal,
   handleNostrProfileToggleAdvanced as handleNostrProfileToggleAdvancedInternal,
+  handleWebsiteWidgetFieldChange as handleWebsiteWidgetFieldChangeInternal,
+  handleWebsiteAssistFieldChange as handleWebsiteAssistFieldChangeInternal,
+  handleWebsiteAssistSendTest as handleWebsiteAssistSendTestInternal,
+  handleWebsiteAssistChatInputChange as handleWebsiteAssistChatInputChangeInternal,
+  handleWebsiteAssistChatRefresh as handleWebsiteAssistChatRefreshInternal,
+  handleWebsiteAssistChatScreenshot as handleWebsiteAssistChatScreenshotInternal,
+  handleWebsiteAssistChatSend as handleWebsiteAssistChatSendInternal,
+  handleWebsiteAssistChatUploadFromDevice as handleWebsiteAssistChatUploadFromDeviceInternal,
+  handleWebsiteAssistTestMessageChange as handleWebsiteAssistTestMessageChangeInternal,
+  handleWebsiteWidgetPreviewReload as handleWebsiteWidgetPreviewReloadInternal,
+  handleWebsiteWidgetProbe as handleWebsiteWidgetProbeInternal,
+  handleWebsiteWidgetSnippetApply as handleWebsiteWidgetSnippetApplyInternal,
+  handleWebsiteWidgetSnippetInputChange as handleWebsiteWidgetSnippetInputChangeInternal,
+  handleWebsiteWidgetSnippetReset as handleWebsiteWidgetSnippetResetInternal,
   handleWhatsAppLogout as handleWhatsAppLogoutInternal,
+  handleWhatsAppRequestCode as handleWhatsAppRequestCodeInternal,
+  handleWhatsAppScreenshot as handleWhatsAppScreenshotInternal,
+  handleWhatsAppScreenshotClose as handleWhatsAppScreenshotCloseInternal,
   handleWhatsAppStart as handleWhatsAppStartInternal,
   handleWhatsAppWait as handleWhatsAppWaitInternal,
 } from "./app-channels.ts";
@@ -192,9 +216,36 @@ export class OpenClawApp extends LitElement {
   @state() whatsappLoginMessage: string | null = null;
   @state() whatsappLoginQrDataUrl: string | null = null;
   @state() whatsappLoginConnected: boolean | null = null;
+  @state() whatsappRequestCodePhone = "";
+  @state() whatsappScreenshotDataUrl: string | null = null;
   @state() whatsappBusy = false;
   @state() nostrProfileFormState: NostrProfileFormState | null = null;
   @state() nostrProfileAccountId: string | null = null;
+  @state() websiteWidgetForm: WebsiteWidgetFormState = createDefaultWebsiteWidgetForm(this);
+  @state() websiteWidgetProbe: WebsiteWidgetProbeState = createDefaultWebsiteWidgetProbe();
+  @state() websiteWidgetSnippetInput = "";
+  @state() websiteWidgetSnippetMessage: string | null = null;
+  @state() websiteWidgetSnippetError: string | null = null;
+  @state() websiteWidgetPreviewNonce = 0;
+  @state() websiteAssistTestMessage = "Test: can you help me with onboarding?";
+  @state() websiteAssistTestStatus: string | null = null;
+  @state() websiteAssistTestError: string | null = null;
+  @state() websiteAssistTesting = false;
+  @state() websiteAssistChatConversationId = "control-ui-dashboard";
+  @state() websiteAssistChatMessages: Array<{
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+    createdAt: number;
+  }> = [];
+  @state() websiteAssistChatInput = "";
+  @state() websiteAssistChatSending = false;
+  @state() websiteAssistMediaSending = false;
+  @state() websiteAssistChatRefreshing = false;
+  @state() websiteAssistChatCursor = 0;
+  @state() websiteAssistChatError: string | null = null;
+  @state() websiteAssistChatMinimized = false;
+  private websiteAssistPollInterval: number | null = null;
 
   @state() presenceLoading = false;
   @state() presenceEntries: PresenceEntry[] = [];
@@ -335,6 +386,7 @@ export class OpenClawApp extends LitElement {
   private nodesPollInterval: number | null = null;
   private logsPollInterval: number | null = null;
   private debugPollInterval: number | null = null;
+  private channelsPollInterval: number | null = null;
   private logsScrollFrame: number | null = null;
   private toolStreamById = new Map<string, ToolStreamEntry>();
   private toolStreamOrder: string[] = [];
@@ -358,6 +410,7 @@ export class OpenClawApp extends LitElement {
     super.connectedCallback();
     this.startStartupSequence();
     handleConnected(this as unknown as Parameters<typeof handleConnected>[0]);
+    this.startWebsiteAssistPolling();
   }
 
   protected firstUpdated() {
@@ -367,8 +420,27 @@ export class OpenClawApp extends LitElement {
   disconnectedCallback() {
     this.channelsQrTour?.cancel();
     this.cancelStartupSequence();
+    this.stopWebsiteAssistPolling();
     handleDisconnected(this as unknown as Parameters<typeof handleDisconnected>[0]);
     super.disconnectedCallback();
+  }
+
+  private startWebsiteAssistPolling() {
+    if (this.websiteAssistPollInterval != null) {
+      return;
+    }
+    this.websiteAssistPollInterval = window.setInterval(() => {
+      void handleWebsiteAssistChatRefreshInternal(this, { silent: true });
+    }, 2000);
+    void handleWebsiteAssistChatRefreshInternal(this, { silent: true });
+  }
+
+  private stopWebsiteAssistPolling() {
+    if (this.websiteAssistPollInterval == null) {
+      return;
+    }
+    window.clearInterval(this.websiteAssistPollInterval);
+    this.websiteAssistPollInterval = null;
   }
 
   private startStartupSequence() {
@@ -555,6 +627,18 @@ export class OpenClawApp extends LitElement {
     await handleWhatsAppLogoutInternal(this);
   }
 
+  async handleWhatsAppRequestCode(phoneNumber: string) {
+    await handleWhatsAppRequestCodeInternal(this, phoneNumber);
+  }
+
+  async handleWhatsAppScreenshot() {
+    await handleWhatsAppScreenshotInternal(this);
+  }
+
+  handleWhatsAppScreenshotClose() {
+    handleWhatsAppScreenshotCloseInternal(this);
+  }
+
   async handleChannelConfigSave() {
     await handleChannelConfigSaveInternal(this);
   }
@@ -585,6 +669,72 @@ export class OpenClawApp extends LitElement {
 
   handleNostrProfileToggleAdvanced() {
     handleNostrProfileToggleAdvancedInternal(this);
+  }
+
+  handleWebsiteWidgetFieldChange(field: keyof WebsiteWidgetFormState, value: string) {
+    handleWebsiteWidgetFieldChangeInternal(this, field, value);
+  }
+
+  async handleWebsiteWidgetProbe() {
+    await handleWebsiteWidgetProbeInternal(this);
+  }
+
+  handleWebsiteWidgetSnippetInputChange(next: string) {
+    handleWebsiteWidgetSnippetInputChangeInternal(this, next);
+  }
+
+  handleWebsiteWidgetSnippetApply() {
+    handleWebsiteWidgetSnippetApplyInternal(this);
+  }
+
+  handleWebsiteWidgetSnippetReset() {
+    handleWebsiteWidgetSnippetResetInternal(this);
+  }
+
+  handleWebsiteWidgetPreviewReload() {
+    handleWebsiteWidgetPreviewReloadInternal(this);
+  }
+
+  handleWebsiteAssistFieldChange(field: keyof WebsiteAssistConfigState, value: string | boolean) {
+    handleWebsiteAssistFieldChangeInternal(this, field, value);
+  }
+
+  handleWebsiteAssistTestMessageChange(value: string) {
+    handleWebsiteAssistTestMessageChangeInternal(this, value);
+  }
+
+  async handleWebsiteAssistSendTest() {
+    await handleWebsiteAssistSendTestInternal(this);
+  }
+
+  handleWebsiteAssistChatInputChange(value: string) {
+    handleWebsiteAssistChatInputChangeInternal(this, value);
+  }
+
+  async handleWebsiteAssistChatSend() {
+    await handleWebsiteAssistChatSendInternal(this);
+  }
+
+  async handleWebsiteAssistChatScreenshot() {
+    await handleWebsiteAssistChatScreenshotInternal(this);
+  }
+
+  async handleWebsiteAssistChatUploadFromDevice() {
+    await handleWebsiteAssistChatUploadFromDeviceInternal(this);
+  }
+
+  async handleWebsiteAssistChatRefresh() {
+    await handleWebsiteAssistChatRefreshInternal(this);
+  }
+
+  handleWebsiteAssistChatToggleMinimize() {
+    this.websiteAssistChatMinimized = !this.websiteAssistChatMinimized;
+  }
+
+  handleWebsiteAssistChatClose() {
+    this.websiteAssistChatConversationId = "";
+    this.websiteAssistChatMessages = [];
+    this.websiteAssistChatMinimized = false;
   }
 
   private async waitForTourTarget(selector: string, timeoutMs = 2500): Promise<void> {
@@ -628,16 +778,24 @@ export class OpenClawApp extends LitElement {
         await this.updateComplete;
       }
       await this.waitForTourTarget('[data-tour="whatsapp-card"]');
+      const card = document.querySelector('[data-tour="whatsapp-card"]');
+      if (card && "open" in card) {
+        card.open = true;
+      }
+      await this.waitForTourTarget('[data-tour="whatsapp-show-qr"]');
     };
     const resolveTarget = (selector: string) => document.querySelector(selector);
 
     tour.addStep({
-      id: "channels-nav",
-      title: "Open Channels",
-      text: "Use the Channels tab to manage account linking across messaging platforms.",
+      id: "whatsapp-show-qr",
+      title: "First Login: Show QR",
+      text: "Start here first. Click Show QR to generate your WhatsApp pairing code before exploring other channel settings.",
+      beforeShowPromise: ensureChannelsTab,
       attachTo: {
-        element: () => resolveTarget('[data-tour-tab="channels"]'),
-        on: "right",
+        element: () =>
+          resolveTarget('[data-tour="whatsapp-show-qr"]') ??
+          resolveTarget('[data-tour="whatsapp-card"]'),
+        on: "bottom",
       },
       buttons: [
         {
@@ -652,32 +810,9 @@ export class OpenClawApp extends LitElement {
     });
 
     tour.addStep({
-      id: "whatsapp-show-qr",
-      title: "Generate WhatsApp QR",
-      text: "Inside Channels, open WhatsApp and click Show QR to generate a pairing code.",
-      beforeShowPromise: ensureChannelsTab,
-      attachTo: {
-        element: () =>
-          resolveTarget('[data-tour="whatsapp-show-qr"]') ??
-          resolveTarget('[data-tour="whatsapp-card"]'),
-        on: "bottom",
-      },
-      buttons: [
-        {
-          text: "Back",
-          action: () => tour.back(),
-        },
-        {
-          text: "Next",
-          action: () => tour.next(),
-        },
-      ],
-    });
-
-    tour.addStep({
       id: "whatsapp-qr",
       title: "Scan This QR",
-      text: "The QR appears in this area. Scan it from WhatsApp on your phone to link the account.",
+      text: "Scan with WhatsApp on your phone to finish first-time linking. After this is done, you can configure Telegram and Website Widget.",
       beforeShowPromise: async () => {
         await ensureChannelsTab();
         if (!this.whatsappQrDataUrl && this.connected && !this.whatsappBusy) {
@@ -698,13 +833,13 @@ export class OpenClawApp extends LitElement {
           action: () => tour.back(),
         },
         {
-          text: "Done",
+          text: "Done - Explore Channels",
           action: () => tour.complete(),
         },
       ],
     });
 
-    tour.start();
+    void tour.start();
   }
 
   async handleExecApprovalDecision(decision: "allow-once" | "allow-always" | "deny") {

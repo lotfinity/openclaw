@@ -43,6 +43,7 @@ import {
   ChannelsStatusResultSchema,
   TalkModeParamsSchema,
   WebLoginStartParamsSchema,
+  WebWhatsAppScreenshotParamsSchema,
   WebLoginWaitParamsSchema,
 } from "./channels.js";
 import {
@@ -200,6 +201,7 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   ChannelsLogoutParams: ChannelsLogoutParamsSchema,
   WebLoginStartParams: WebLoginStartParamsSchema,
   WebLoginWaitParams: WebLoginWaitParamsSchema,
+  WebWhatsAppScreenshotParams: WebWhatsAppScreenshotParamsSchema,
   AgentSummary: AgentSummarySchema,
   AgentsCreateParams: AgentsCreateParamsSchema,
   AgentsCreateResult: AgentsCreateResultSchema,

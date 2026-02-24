@@ -140,6 +140,13 @@ export const WebLoginStartParamsSchema = Type.Object(
     timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
     verbose: Type.Optional(Type.Boolean()),
     accountId: Type.Optional(Type.String()),
+    mode: Type.Optional(
+      Type.Unsafe<"qr" | "request-code">({
+        type: "string",
+        enum: ["qr", "request-code"],
+      }),
+    ),
+    phoneNumber: Type.Optional(Type.String()),
   },
   { additionalProperties: false },
 );
@@ -147,6 +154,13 @@ export const WebLoginStartParamsSchema = Type.Object(
 export const WebLoginWaitParamsSchema = Type.Object(
   {
     timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
+    accountId: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+
+export const WebWhatsAppScreenshotParamsSchema = Type.Object(
+  {
     accountId: Type.Optional(Type.String()),
   },
   { additionalProperties: false },

@@ -16,7 +16,11 @@ import {
   webAuthExists,
 } from "./session.js";
 import { assertBaileysTransport } from "./transports/guard.js";
-import { startWahaLoginWithQr, waitForWahaLogin } from "./transports/waha/login.js";
+import {
+  fetchWahaSessionScreenshot,
+  startWahaLoginWithQr,
+  waitForWahaLogin,
+} from "./transports/waha/login.js";
 
 type WaSocket = Awaited<ReturnType<typeof createWaSocket>>;
 
@@ -113,6 +117,8 @@ export async function startWebLoginWithQr(
     timeoutMs?: number;
     force?: boolean;
     accountId?: string;
+    mode?: "qr" | "request-code";
+    phoneNumber?: string;
     runtime?: RuntimeEnv;
   } = {},
 ): Promise<{ qrDataUrl?: string; message: string }> {
@@ -124,9 +130,16 @@ export async function startWebLoginWithQr(
       account,
       timeoutMs: opts.timeoutMs,
       force: opts.force,
+      mode: opts.mode,
+      phoneNumber: opts.phoneNumber,
       runtime,
       verbose: opts.verbose,
     });
+  }
+  if (opts.mode === "request-code") {
+    return {
+      message: "Request code is only supported when WhatsApp transport is WAHA.",
+    };
   }
   assertBaileysTransport(account.transport, "QR login");
   const hasWeb = await webAuthExists(account.authDir);
@@ -312,4 +325,20 @@ export async function waitForWebLogin(
 
     return { connected: false, message: "Login ended without a connection." };
   }
+}
+
+export async function getWebLoginScreenshot(
+  opts: { accountId?: string; runtime?: RuntimeEnv } = {},
+): Promise<{ imageDataUrl?: string; message: string }> {
+  const runtime = opts.runtime ?? defaultRuntime;
+  const cfg = loadConfig();
+  const account = resolveWhatsAppAccount({ cfg, accountId: opts.accountId });
+  if (account.transport !== "waha") {
+    return { message: "Screenshot preview is only supported when WhatsApp transport is WAHA." };
+  }
+  const result = await fetchWahaSessionScreenshot({ account });
+  if (result.imageDataUrl) {
+    runtime.log(info("WAHA screenshot captured."));
+  }
+  return result;
 }

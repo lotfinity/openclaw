@@ -13,6 +13,8 @@ import type {
   WhatsAppStatus,
 } from "../types.ts";
 import type { NostrProfileFormState } from "./channels.nostr-profile-form.ts";
+import type { WebsiteAssistConfigState } from "./channels.website-assist.ts";
+import type { WebsiteWidgetFormState, WebsiteWidgetProbeState } from "./channels.website-widget.ts";
 
 export type ChannelKey = string;
 
@@ -25,6 +27,8 @@ export type ChannelsProps = {
   whatsappMessage: string | null;
   whatsappQrDataUrl: string | null;
   whatsappConnected: boolean | null;
+  whatsappRequestCodePhone: string;
+  whatsappScreenshotDataUrl: string | null;
   whatsappBusy: boolean;
   configSchema: unknown;
   configSchemaLoading: boolean;
@@ -34,10 +38,35 @@ export type ChannelsProps = {
   configFormDirty: boolean;
   nostrProfileFormState: NostrProfileFormState | null;
   nostrProfileAccountId: string | null;
+  websiteWidgetForm: WebsiteWidgetFormState;
+  websiteWidgetProbe: WebsiteWidgetProbeState;
+  websiteWidgetSnippetInput: string;
+  websiteWidgetSnippetMessage: string | null;
+  websiteWidgetSnippetError: string | null;
+  websiteWidgetPreviewNonce: number;
+  websiteAssistTestMessage: string;
+  websiteAssistTestStatus: string | null;
+  websiteAssistTestError: string | null;
+  websiteAssistTesting: boolean;
+  websiteAssistChatConversationId: string;
+  websiteAssistChatMessages: Array<{
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+    createdAt: number;
+  }>;
+  websiteAssistChatInput: string;
+  websiteAssistChatSending: boolean;
+  websiteAssistChatRefreshing: boolean;
+  websiteAssistChatError: string | null;
   onRefresh: (probe: boolean) => void;
   onWhatsAppStart: (force: boolean) => void;
   onWhatsAppWait: () => void;
   onWhatsAppLogout: () => void;
+  onWhatsAppRequestCode: (phoneNumber: string) => void;
+  onWhatsAppScreenshot: () => void;
+  onWhatsAppScreenshotClose: () => void;
+  onWhatsAppRequestCodePhoneChange: (value: string) => void;
   onConfigPatch: (path: Array<string | number>, value: unknown) => void;
   onConfigSave: () => void;
   onConfigReload: () => void;
@@ -47,6 +76,21 @@ export type ChannelsProps = {
   onNostrProfileSave: () => void;
   onNostrProfileImport: () => void;
   onNostrProfileToggleAdvanced: () => void;
+  onWebsiteWidgetFieldChange: (field: keyof WebsiteWidgetFormState, value: string) => void;
+  onWebsiteWidgetProbe: () => void;
+  onWebsiteWidgetSnippetInputChange: (next: string) => void;
+  onWebsiteWidgetSnippetApply: () => void;
+  onWebsiteWidgetSnippetReset: () => void;
+  onWebsiteWidgetPreviewReload: () => void;
+  onWebsiteAssistFieldChange: (
+    field: keyof WebsiteAssistConfigState,
+    value: string | boolean,
+  ) => void;
+  onWebsiteAssistTestMessageChange: (value: string) => void;
+  onWebsiteAssistSendTest: () => void;
+  onWebsiteAssistChatInputChange: (value: string) => void;
+  onWebsiteAssistChatSend: () => void;
+  onWebsiteAssistChatRefresh: () => void;
 };
 
 export type ChannelsChannelData = {

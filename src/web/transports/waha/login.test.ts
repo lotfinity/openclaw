@@ -229,4 +229,36 @@ describe("waha login", () => {
 
     await closeServer(server);
   });
+
+  it("treats an already-working WAHA session as connected when no active login exists", async () => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/api/sessions")) {
+        return new Response(JSON.stringify([{ name: "default", status: "WORKING" }]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const account = {
+      accountId: "default",
+      transport: "waha",
+      waha: {
+        baseUrl: "http://waha.local",
+        session: "default",
+      },
+    } as unknown as ResolvedWhatsAppAccount;
+
+    const result = await waitForWahaLogin({
+      account,
+      timeoutMs: 1000,
+      runtime: { log: vi.fn(), error: vi.fn() } as never,
+    });
+
+    expect(result.connected).toBe(true);
+    expect(result.message).toContain("Linked");
+  });
 });

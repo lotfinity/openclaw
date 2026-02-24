@@ -35,6 +35,22 @@ function readString(input: unknown): string | undefined {
   return typeof input === "string" && input.trim() ? input : undefined;
 }
 
+function decodeWsMessageData(input: unknown): string | null {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof Buffer) {
+    return input.toString("utf8");
+  }
+  if (input instanceof ArrayBuffer) {
+    return Buffer.from(input).toString("utf8");
+  }
+  if (Array.isArray(input) && input.every((chunk) => chunk instanceof Buffer)) {
+    return Buffer.concat(input).toString("utf8");
+  }
+  return null;
+}
+
 function resolveWahaConfig(account: ResolvedWhatsAppAccount): {
   baseUrl: string;
   apiKey?: string;
@@ -97,7 +113,6 @@ async function tryStartSession(account: ResolvedWhatsAppAccount): Promise<void> 
 
   const attempts: Array<{ path: string; body: Record<string, unknown> }> = [
     { path: "/api/sessions/start", body: { name: session } },
-    { path: "/api/session/start", body: { name: session } },
     { path: `/api/sessions/${encodeURIComponent(session)}/start`, body: {} },
   ];
   for (const attempt of attempts) {
@@ -122,17 +137,13 @@ async function tryStartSession(account: ResolvedWhatsAppAccount): Promise<void> 
 
 async function listSessions(account: ResolvedWhatsAppAccount): Promise<WahaSessionInfo[]> {
   const { baseUrl, apiKey } = resolveWahaConfig(account);
-  const url = new URL(`${baseUrl}/api/sessions`);
-  if (apiKey) {
-    url.searchParams.set("x-api-key", apiKey);
-  }
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
   if (apiKey) {
     headers["X-Api-Key"] = apiKey;
   }
-  const response = await fetch(url.toString(), { headers });
+  const response = await fetch(`${baseUrl}/api/sessions`, { headers });
   if (!response.ok) {
     return [];
   }
@@ -207,6 +218,89 @@ async function fetchSessionQrDataUrl(account: ResolvedWhatsAppAccount): Promise<
   return `data:image/png;base64,${base64}`;
 }
 
+async function responseToImageDataUrl(response: Response): Promise<string | null> {
+  const contentType = response.headers.get("content-type")?.trim() || "image/png";
+  if (contentType.toLowerCase().startsWith("image/")) {
+    const bytes = await response.arrayBuffer();
+    if (!bytes || bytes.byteLength === 0) {
+      return null;
+    }
+    const base64 = Buffer.from(bytes).toString("base64");
+    return `data:${contentType};base64,${base64}`;
+  }
+  const payload = (await response.json().catch(() => null)) as {
+    screenshot?: unknown;
+    data?: unknown;
+    base64?: unknown;
+    url?: unknown;
+  } | null;
+  const maybeBase64 =
+    readString(payload?.screenshot) ?? readString(payload?.data) ?? readString(payload?.base64);
+  if (maybeBase64) {
+    return `data:image/png;base64,${maybeBase64}`;
+  }
+  return null;
+}
+
+export async function fetchWahaSessionScreenshot(params: {
+  account: ResolvedWhatsAppAccount;
+}): Promise<{ imageDataUrl?: string; message: string }> {
+  const { baseUrl, apiKey, session } = resolveWahaConfig(params.account);
+  const authHeaders: Record<string, string> = {};
+  if (apiKey) {
+    authHeaders["X-Api-Key"] = apiKey;
+  }
+  const candidates: string[] = [];
+  {
+    const url = new URL(`${baseUrl}/api/screenshot`);
+    url.searchParams.set("session", session);
+    if (apiKey) {
+      url.searchParams.set("x-api-key", apiKey);
+    }
+    candidates.push(url.toString());
+  }
+  {
+    const url = new URL(`${baseUrl}/api/${encodeURIComponent(session)}/screenshot`);
+    if (apiKey) {
+      url.searchParams.set("x-api-key", apiKey);
+    }
+    candidates.push(url.toString());
+  }
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, {
+        headers: {
+          ...authHeaders,
+          Accept: "image/png,image/*;q=0.9,application/json;q=0.8,*/*;q=0.7",
+        },
+      });
+      if (response.ok) {
+        const imageDataUrl = await responseToImageDataUrl(response);
+        if (imageDataUrl) {
+          return { imageDataUrl, message: "WAHA screenshot captured." };
+        }
+        return {
+          message: "WAHA screenshot endpoint responded but did not return image bytes.",
+        };
+      }
+      if (response.status === 404 || response.status === 405) {
+        continue;
+      }
+      const payload = await parseJsonResponse(response);
+      const detail = readString((payload as { message?: unknown } | null)?.message);
+      return {
+        message: `WAHA screenshot failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`,
+      };
+    } catch (err) {
+      return { message: `WAHA screenshot failed: ${String(err)}` };
+    }
+  }
+  return {
+    message:
+      'WAHA screenshot endpoint not available (tried "/api/screenshot" and "/api/{session}/screenshot").',
+  };
+}
+
 function createWaitPromise() {
   let resolveWait: (() => void) | null = null;
   let rejectWait: ((err: Error) => void) | null = null;
@@ -228,10 +322,19 @@ export async function startWahaLoginWithQr(params: {
   account: ResolvedWhatsAppAccount;
   timeoutMs?: number;
   force?: boolean;
+  mode?: "qr" | "request-code";
+  phoneNumber?: string;
   runtime: RuntimeEnv;
   verbose?: boolean;
 }): Promise<{ qrDataUrl?: string; message: string }> {
   const { account, runtime } = params;
+  if (params.mode === "request-code") {
+    return await requestWahaAuthCode({
+      account,
+      runtime,
+      phoneNumber: params.phoneNumber,
+    });
+  }
   const existing = activeWahaLogins.get(account.accountId);
   if (existing && isLoginFresh(existing)) {
     if (existing.connected) {
@@ -280,7 +383,11 @@ export async function startWahaLoginWithQr(params: {
   ws.on("message", async (raw) => {
     let envelope: WahaEnvelope | null = null;
     try {
-      envelope = JSON.parse(String(raw)) as WahaEnvelope;
+      const decoded = decodeWsMessageData(raw);
+      if (!decoded) {
+        return;
+      }
+      envelope = JSON.parse(decoded) as WahaEnvelope;
     } catch {
       return;
     }
@@ -389,6 +496,172 @@ export async function startWahaLoginWithQr(params: {
   };
 }
 
+function buildAuthHeaders(apiKey?: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (apiKey) {
+    headers["X-Api-Key"] = apiKey;
+  }
+  return headers;
+}
+
+async function parseJsonResponse(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function compactJson(value: unknown, max = 220): string {
+  try {
+    const text = JSON.stringify(value);
+    if (text.length <= max) {
+      return text;
+    }
+    return `${text.slice(0, max)}...`;
+  } catch {
+    return String(value);
+  }
+}
+
+export async function requestWahaAuthCode(params: {
+  account: ResolvedWhatsAppAccount;
+  runtime: RuntimeEnv;
+  phoneNumber?: string;
+}): Promise<{ message: string }> {
+  const { baseUrl, session, apiKey } = resolveWahaConfig(params.account);
+  const phoneNumber = params.phoneNumber?.trim();
+  if (!phoneNumber) {
+    return { message: "Phone number is required for WAHA request-code." };
+  }
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...buildAuthHeaders(apiKey),
+  };
+  const body: { phoneNumber: string; method: null } = {
+    phoneNumber,
+    method: null,
+  };
+  const url = `${baseUrl}/api/${encodeURIComponent(session)}/auth/request-code`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    return { message: `WAHA request-code failed: ${String(err)}` };
+  }
+  const payload = await parseJsonResponse(response);
+  if (response.ok) {
+    const code = readString((payload as { code?: unknown } | null)?.code);
+    if (code) {
+      return { message: `Pairing code requested. Use this code in WhatsApp: ${code}` };
+    }
+    const message = readString((payload as { message?: unknown } | null)?.message);
+    return { message: message ?? "Pairing code requested from WAHA." };
+  }
+  const parsedMessage = readString((payload as { message?: unknown } | null)?.message);
+  const detail = parsedMessage ?? compactJson(payload);
+  return {
+    message: `WAHA request-code failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`,
+  };
+}
+
+export async function stopWahaSession(params: {
+  account: ResolvedWhatsAppAccount;
+}): Promise<{ stopped: boolean; message: string }> {
+  const { baseUrl, session, apiKey } = resolveWahaConfig(params.account);
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...buildAuthHeaders(apiKey),
+  };
+  const attempts: Array<{
+    path: string;
+    method: "POST";
+    body?: Record<string, unknown>;
+  }> = [
+    { path: `/api/sessions/${encodeURIComponent(session)}/stop`, method: "POST", body: {} },
+    { path: "/api/sessions/stop", method: "POST", body: { name: session } },
+  ];
+  for (const attempt of attempts) {
+    try {
+      const response = await fetch(`${baseUrl}${attempt.path}`, {
+        method: attempt.method,
+        headers,
+        body: attempt.body === undefined ? undefined : JSON.stringify(attempt.body),
+      });
+      if (response.ok) {
+        resetWahaLogin(params.account.accountId);
+        return { stopped: true, message: `WAHA session "${session}" stopped.` };
+      }
+      if (response.status === 404 || response.status === 405) {
+        continue;
+      }
+      const payload = await parseJsonResponse(response);
+      const detail = readString((payload as { message?: unknown } | null)?.message);
+      return {
+        stopped: false,
+        message: `WAHA stop failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`,
+      };
+    } catch (err) {
+      return { stopped: false, message: `WAHA stop failed: ${String(err)}` };
+    }
+  }
+  return {
+    stopped: false,
+    message:
+      'WAHA stop endpoint not available (tried "/api/sessions/{session}/stop", "/api/sessions/stop").',
+  };
+}
+
+export async function logoutWahaSession(params: {
+  account: ResolvedWhatsAppAccount;
+}): Promise<{ loggedOut: boolean; message: string }> {
+  const { baseUrl, session, apiKey } = resolveWahaConfig(params.account);
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...buildAuthHeaders(apiKey),
+  };
+  const attempts: Array<{ path: string; body?: Record<string, unknown> }> = [
+    { path: `/api/sessions/${encodeURIComponent(session)}/logout`, body: {} },
+    { path: "/api/sessions/logout", body: { name: session } },
+  ];
+  for (const attempt of attempts) {
+    try {
+      const response = await fetch(`${baseUrl}${attempt.path}`, {
+        method: "POST",
+        headers,
+        body: attempt.body === undefined ? undefined : JSON.stringify(attempt.body),
+      });
+      if (response.ok) {
+        resetWahaLogin(params.account.accountId);
+        return { loggedOut: true, message: `WAHA session "${session}" logged out.` };
+      }
+      if (response.status === 404 || response.status === 405) {
+        continue;
+      }
+      const payload = await parseJsonResponse(response);
+      const detail = readString((payload as { message?: unknown } | null)?.message);
+      return {
+        loggedOut: false,
+        message: `WAHA logout failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`,
+      };
+    } catch (err) {
+      return { loggedOut: false, message: `WAHA logout failed: ${String(err)}` };
+    }
+  }
+  return {
+    loggedOut: false,
+    message:
+      'WAHA logout endpoint not available (tried "/api/sessions/{session}/logout", "/api/sessions/logout").',
+  };
+}
+
 export async function waitForWahaLogin(params: {
   account: ResolvedWhatsAppAccount;
   timeoutMs?: number;
@@ -396,7 +669,18 @@ export async function waitForWahaLogin(params: {
 }): Promise<{ connected: boolean; message: string }> {
   const login = activeWahaLogins.get(params.account.accountId);
   if (!login) {
-    return { connected: false, message: "No active WAHA login in progress." };
+    const status = await getSessionStatus(params.account).catch(() => null);
+    if (isConnectedStatus(status ?? undefined)) {
+      return { connected: true, message: "✅ Linked! WhatsApp is ready." };
+    }
+    if (isFailureStatus(status ?? undefined)) {
+      return { connected: false, message: `WAHA login failed: session status ${status}` };
+    }
+    const statusHint = status ? ` (current status: ${status})` : "";
+    return {
+      connected: false,
+      message: `No active WAHA login in progress.${statusHint}`,
+    };
   }
   if (!isLoginFresh(login)) {
     resetWahaLogin(params.account.accountId);

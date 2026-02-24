@@ -58,6 +58,7 @@ import { renderChannels } from "./views/channels.ts";
 import { renderChat } from "./views/chat.ts";
 import { renderConfig } from "./views/config.ts";
 import { renderCron } from "./views/cron.ts";
+import { renderDashboardAssistWidget } from "./views/dashboard-assist-widget.ts";
 import { renderDebug } from "./views/debug.ts";
 import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
@@ -175,11 +176,12 @@ export function renderApp(state: AppViewState) {
         </div>
         <div class="topbar-status">
           <button
-            class="btn btn--sm"
+            class="btn btn--sm whatsapp-guide-btn"
             @click=${() => void state.startChannelsQrTutorial()}
             title="Guide to WhatsApp QR linking"
           >
-            WhatsApp Guide
+            <span class="whatsapp-guide-btn__icon" aria-hidden="true">?</span>
+            <span>WhatsApp Guide</span>
           </button>
           <div class="pill">
             <span class="statusDot ${state.connected ? "ok" : ""}"></span>
@@ -216,23 +218,6 @@ export function renderApp(state: AppViewState) {
             </div>
           `;
         })}
-        <div class="nav-group nav-group--links">
-          <div class="nav-label nav-label--static">
-            <span class="nav-label__text">Resources</span>
-          </div>
-          <div class="nav-group__items">
-            <a
-              class="nav-item nav-item--external"
-              href="https://docs.openclaw.ai"
-              target="_blank"
-              rel="noreferrer"
-              title="Docs (opens in new tab)"
-            >
-              <span class="nav-item__icon" aria-hidden="true">${icons.book}</span>
-              <span class="nav-item__text">Docs</span>
-            </a>
-          </div>
-        </div>
       </aside>
       <main class="content ${isChat ? "content--chat" : ""}">
         <section class="content-header">
@@ -289,6 +274,8 @@ export function renderApp(state: AppViewState) {
                 whatsappMessage: state.whatsappLoginMessage,
                 whatsappQrDataUrl: state.whatsappLoginQrDataUrl,
                 whatsappConnected: state.whatsappLoginConnected,
+                whatsappRequestCodePhone: state.whatsappRequestCodePhone,
+                whatsappScreenshotDataUrl: state.whatsappScreenshotDataUrl,
                 whatsappBusy: state.whatsappBusy,
                 configSchema: state.configSchema,
                 configSchemaLoading: state.configSchemaLoading,
@@ -298,10 +285,33 @@ export function renderApp(state: AppViewState) {
                 configFormDirty: state.configFormDirty,
                 nostrProfileFormState: state.nostrProfileFormState,
                 nostrProfileAccountId: state.nostrProfileAccountId,
+                websiteWidgetForm: state.websiteWidgetForm,
+                websiteWidgetProbe: state.websiteWidgetProbe,
+                websiteWidgetSnippetInput: state.websiteWidgetSnippetInput,
+                websiteWidgetSnippetMessage: state.websiteWidgetSnippetMessage,
+                websiteWidgetSnippetError: state.websiteWidgetSnippetError,
+                websiteWidgetPreviewNonce: state.websiteWidgetPreviewNonce,
+                websiteAssistTestMessage: state.websiteAssistTestMessage,
+                websiteAssistTestStatus: state.websiteAssistTestStatus,
+                websiteAssistTestError: state.websiteAssistTestError,
+                websiteAssistTesting: state.websiteAssistTesting,
+                websiteAssistChatConversationId: state.websiteAssistChatConversationId,
+                websiteAssistChatMessages: state.websiteAssistChatMessages,
+                websiteAssistChatInput: state.websiteAssistChatInput,
+                websiteAssistChatSending: state.websiteAssistChatSending,
+                websiteAssistChatRefreshing: state.websiteAssistChatRefreshing,
+                websiteAssistChatError: state.websiteAssistChatError,
                 onRefresh: (probe) => loadChannels(state, probe),
                 onWhatsAppStart: (force) => state.handleWhatsAppStart(force),
                 onWhatsAppWait: () => state.handleWhatsAppWait(),
                 onWhatsAppLogout: () => state.handleWhatsAppLogout(),
+                onWhatsAppRequestCode: (phoneNumber) =>
+                  state.handleWhatsAppRequestCode(phoneNumber),
+                onWhatsAppScreenshot: () => state.handleWhatsAppScreenshot(),
+                onWhatsAppScreenshotClose: () => state.handleWhatsAppScreenshotClose(),
+                onWhatsAppRequestCodePhoneChange: (value) => {
+                  state.whatsappRequestCodePhone = value;
+                },
                 onConfigPatch: (path, value) => updateConfigFormValue(state, path, value),
                 onConfigSave: () => state.handleChannelConfigSave(),
                 onConfigReload: () => state.handleChannelConfigReload(),
@@ -313,6 +323,23 @@ export function renderApp(state: AppViewState) {
                 onNostrProfileSave: () => state.handleNostrProfileSave(),
                 onNostrProfileImport: () => state.handleNostrProfileImport(),
                 onNostrProfileToggleAdvanced: () => state.handleNostrProfileToggleAdvanced(),
+                onWebsiteWidgetFieldChange: (field, value) =>
+                  state.handleWebsiteWidgetFieldChange(field, value),
+                onWebsiteWidgetProbe: () => state.handleWebsiteWidgetProbe(),
+                onWebsiteWidgetSnippetInputChange: (next) =>
+                  state.handleWebsiteWidgetSnippetInputChange(next),
+                onWebsiteWidgetSnippetApply: () => state.handleWebsiteWidgetSnippetApply(),
+                onWebsiteWidgetSnippetReset: () => state.handleWebsiteWidgetSnippetReset(),
+                onWebsiteWidgetPreviewReload: () => state.handleWebsiteWidgetPreviewReload(),
+                onWebsiteAssistFieldChange: (field, value) =>
+                  state.handleWebsiteAssistFieldChange(field, value),
+                onWebsiteAssistTestMessageChange: (value) =>
+                  state.handleWebsiteAssistTestMessageChange(value),
+                onWebsiteAssistSendTest: () => state.handleWebsiteAssistSendTest(),
+                onWebsiteAssistChatInputChange: (value) =>
+                  state.handleWebsiteAssistChatInputChange(value),
+                onWebsiteAssistChatSend: () => state.handleWebsiteAssistChatSend(),
+                onWebsiteAssistChatRefresh: () => state.handleWebsiteAssistChatRefresh(),
               })
             : nothing
         }
@@ -992,6 +1019,25 @@ export function renderApp(state: AppViewState) {
             : nothing
         }
       </main>
+      ${
+        state.websiteAssistChatConversationId
+          ? renderDashboardAssistWidget({
+              conversationId: state.websiteAssistChatConversationId,
+              messages: state.websiteAssistChatMessages,
+              input: state.websiteAssistChatInput,
+              sending: state.websiteAssistChatSending,
+              mediaSending: state.websiteAssistMediaSending,
+              error: state.websiteAssistChatError,
+              isMinimized: state.websiteAssistChatMinimized,
+              onInputChange: (value) => state.handleWebsiteAssistChatInputChange(value),
+              onSend: () => state.handleWebsiteAssistChatSend(),
+              onScreenshot: () => state.handleWebsiteAssistChatScreenshot(),
+              onUploadFromDevice: () => state.handleWebsiteAssistChatUploadFromDevice(),
+              onToggleMinimize: () => state.handleWebsiteAssistChatToggleMinimize(),
+              onClose: () => state.handleWebsiteAssistChatClose(),
+            })
+          : nothing
+      }
       ${renderGatewayAuthRequiredModal({
         connected: state.connected,
         hello: state.hello,

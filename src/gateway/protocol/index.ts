@@ -204,6 +204,8 @@ import {
   WakeParamsSchema,
   type WebLoginStartParams,
   WebLoginStartParamsSchema,
+  type WebWhatsAppScreenshotParams,
+  WebWhatsAppScreenshotParamsSchema,
   type WebLoginWaitParams,
   WebLoginWaitParamsSchema,
   type WizardCancelParams,
@@ -367,6 +369,9 @@ export const validateUpdateRunParams = ajv.compile<UpdateRunParams>(UpdateRunPar
 export const validateWebLoginStartParams =
   ajv.compile<WebLoginStartParams>(WebLoginStartParamsSchema);
 export const validateWebLoginWaitParams = ajv.compile<WebLoginWaitParams>(WebLoginWaitParamsSchema);
+export const validateWebWhatsAppScreenshotParams = ajv.compile<WebWhatsAppScreenshotParams>(
+  WebWhatsAppScreenshotParamsSchema,
+);
 
 export function formatValidationErrors(errors: ErrorObject[] | null | undefined) {
   if (!errors?.length) {
@@ -457,6 +462,7 @@ export {
   ChannelsStatusResultSchema,
   ChannelsLogoutParamsSchema,
   WebLoginStartParamsSchema,
+  WebWhatsAppScreenshotParamsSchema,
   WebLoginWaitParamsSchema,
   AgentSummarySchema,
   AgentsFileEntrySchema,
@@ -546,6 +552,7 @@ export type {
   ChannelsStatusResult,
   ChannelsLogoutParams,
   WebLoginStartParams,
+  WebWhatsAppScreenshotParams,
   WebLoginWaitParams,
   AgentSummary,
   AgentsFileEntry,

@@ -1,10 +1,12 @@
 import type { GatewayRequestHandlers } from "./types.js";
 import { listChannelPlugins } from "../../channels/plugins/index.js";
+import { getWebLoginScreenshot } from "../../web/login-qr.js";
 import {
   ErrorCodes,
   errorShape,
   formatValidationErrors,
   validateWebLoginStartParams,
+  validateWebWhatsAppScreenshotParams,
   validateWebLoginWaitParams,
 } from "../protocol/index.js";
 import { formatForLog } from "../ws-log.js";
@@ -62,6 +64,14 @@ export const webHandlers: GatewayRequestHandlers = {
             ? (params as { timeoutMs?: number }).timeoutMs
             : undefined,
         verbose: Boolean((params as { verbose?: boolean }).verbose),
+        mode:
+          typeof (params as { mode?: unknown }).mode === "string"
+            ? ((params as { mode?: "qr" | "request-code" }).mode ?? undefined)
+            : undefined,
+        phoneNumber:
+          typeof (params as { phoneNumber?: unknown }).phoneNumber === "string"
+            ? (params as { phoneNumber?: string }).phoneNumber
+            : undefined,
         accountId,
       });
       respond(true, result, undefined);
@@ -116,6 +126,29 @@ export const webHandlers: GatewayRequestHandlers = {
       if (result.connected) {
         await context.startChannel(provider.id, accountId);
       }
+      respond(true, result, undefined);
+    } catch (err) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+    }
+  },
+  "web.whatsapp.screenshot": async ({ params, respond }) => {
+    if (!validateWebWhatsAppScreenshotParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid web.whatsapp.screenshot params: ${formatValidationErrors(validateWebWhatsAppScreenshotParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    try {
+      const accountId =
+        typeof (params as { accountId?: unknown }).accountId === "string"
+          ? (params as { accountId?: string }).accountId
+          : undefined;
+      const result = await getWebLoginScreenshot({ accountId });
       respond(true, result, undefined);
     } catch (err) {
       respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
