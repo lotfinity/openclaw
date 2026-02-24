@@ -53,6 +53,12 @@ extension ChannelsSettings {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if let status = self.store.whatsappRuntimeStatus, !status.isEmpty {
+                    Text("Runtime: \(status)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 if let qr = self.store.whatsappLoginQrDataUrl, let image = self.qrImage(from: qr) {
                     Image(nsImage: image)
@@ -80,8 +86,25 @@ extension ChannelsSettings {
                     }
                     .buttonStyle(.bordered)
                     .disabled(self.store.whatsappBusy)
+
+                    Button("Wait for scan") {
+                        Task { await self.store.waitWhatsAppLogin() }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(self.store.whatsappBusy)
                 }
                 .font(.caption)
+
+                HStack(spacing: 12) {
+                    TextField("Phone number for request-code (E.164)", text: self.$store.whatsappLinkPhoneNumber)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                    Button("Request code") {
+                        Task { await self.store.requestWhatsAppPairCode() }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(self.store.whatsappBusy || self.store.whatsappLinkPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
 
             self.configEditorSection(channelId: "whatsapp")

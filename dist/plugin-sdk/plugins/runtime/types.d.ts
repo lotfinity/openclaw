@@ -104,6 +104,8 @@ type SendPollWhatsApp = typeof import("../../web/outbound.js").sendPollWhatsApp;
 type LoginWeb = typeof import("../../web/login.js").loginWeb;
 type StartWebLoginWithQr = typeof import("../../web/login-qr.js").startWebLoginWithQr;
 type WaitForWebLogin = typeof import("../../web/login-qr.js").waitForWebLogin;
+type StopWahaSession = typeof import("../../web/transports/waha/login.js").stopWahaSession;
+type LogoutWahaSession = typeof import("../../web/transports/waha/login.js").logoutWahaSession;
 type ResolveWhatsAppTransportId = typeof import("../../web/transports/index.js").resolveWhatsAppTransportId;
 type MonitorWebChannel = typeof import("../../channels/web/index.js").monitorWebChannel;
 type HandleWhatsAppAction = typeof import("../../agents/tools/whatsapp-actions.js").handleWhatsAppAction;
@@ -281,6 +283,8 @@ export type PluginRuntime = {
             loginWeb: LoginWeb;
             startWebLoginWithQr: StartWebLoginWithQr;
             waitForWebLogin: WaitForWebLogin;
+            stopWahaSession: StopWahaSession;
+            logoutWahaSession: LogoutWahaSession;
             resolveTransportId: ResolveWhatsAppTransportId;
             monitorWebChannel: MonitorWebChannel;
             handleWhatsAppAction: HandleWhatsAppAction;

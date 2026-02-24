@@ -232,6 +232,8 @@ final class ChannelsStore {
     var whatsappLoginMessage: String?
     var whatsappLoginQrDataUrl: String?
     var whatsappLoginConnected: Bool?
+    var whatsappLinkPhoneNumber = ""
+    var whatsappRuntimeStatus: String?
     var whatsappBusy = false
     var telegramBusy = false
 

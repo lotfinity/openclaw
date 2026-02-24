@@ -92,6 +92,96 @@ describe("waha client", () => {
     });
   });
 
+  it("sends audio via sendVoice endpoint with convert=true for non-opus", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: "wamid.audio" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const result = await sendMediaViaWaha(
+      account,
+      "+1555",
+      "",
+      Buffer.from("audio"),
+      "audio/mpeg",
+      "voice.mp3",
+    );
+    expect(result).toEqual({ messageId: "wamid.audio" });
+    const [url, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://waha.local/api/sendVoice");
+    const body = JSON.parse(String(requestInit.body));
+    expect(body.convert).toBe(true);
+    expect(body.file.mimetype).toBe("audio/mpeg");
+  });
+
+  it("sends audio via sendVoice endpoint with convert=false for opus", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: "wamid.opus" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    await sendMediaViaWaha(account, "+1555", "", Buffer.from("audio"), "audio/ogg; codecs=opus");
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(requestInit.body));
+    expect(body.convert).toBe(false);
+  });
+
+  it("sends video via sendVideo endpoint", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: "wamid.vid" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const result = await sendMediaViaWaha(
+      account,
+      "+1555",
+      "clip",
+      Buffer.from("video"),
+      "video/mp4",
+      "clip.mp4",
+    );
+    expect(result).toEqual({ messageId: "wamid.vid" });
+    const [url, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://waha.local/api/sendVideo");
+    const body = JSON.parse(String(requestInit.body));
+    expect(body.caption).toBe("clip");
+    expect(body.file.filename).toBe("clip.mp4");
+  });
+
+  it("sends document via sendFile endpoint", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: "wamid.doc" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const result = await sendMediaViaWaha(
+      account,
+      "+1555",
+      "here is the pdf",
+      Buffer.from("pdf"),
+      "application/pdf",
+      "report.pdf",
+    );
+    expect(result).toEqual({ messageId: "wamid.doc" });
+    const [url, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://waha.local/api/sendFile");
+    const body = JSON.parse(String(requestInit.body));
+    expect(body.caption).toBe("here is the pdf");
+    expect(body.file.filename).toBe("report.pdf");
+  });
+
   it("sends reactions via reaction endpoint", async () => {
     const fetchMock = vi.fn(
       async () =>

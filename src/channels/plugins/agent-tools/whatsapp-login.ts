@@ -5,16 +5,18 @@ export function createWhatsAppLoginTool(): ChannelAgentTool {
   return {
     label: "WhatsApp Login",
     name: "whatsapp_login",
-    description: "Generate a WhatsApp QR code for linking, or wait for the scan to complete.",
+    description:
+      "Generate a WhatsApp QR code for linking, request a WAHA pairing code, or wait for the scan to complete.",
     // NOTE: Using Type.Unsafe for action enum instead of Type.Union([Type.Literal(...)]
     // because Claude API on Vertex AI rejects nested anyOf schemas as invalid JSON Schema.
     parameters: Type.Object({
-      action: Type.Unsafe<"start" | "wait">({
+      action: Type.Unsafe<"start" | "wait" | "request-code">({
         type: "string",
-        enum: ["start", "wait"],
+        enum: ["start", "wait", "request-code"],
       }),
       timeoutMs: Type.Optional(Type.Number()),
       force: Type.Optional(Type.Boolean()),
+      phoneNumber: Type.Optional(Type.String()),
     }),
     execute: async (_toolCallId, args) => {
       const { startWebLoginWithQr, waitForWebLogin } = await import("../../../web/login-qr.js");
@@ -29,6 +31,24 @@ export function createWhatsAppLoginTool(): ChannelAgentTool {
         return {
           content: [{ type: "text", text: result.message }],
           details: { connected: result.connected },
+        };
+      }
+
+      if (action === "request-code") {
+        const result = await startWebLoginWithQr({
+          mode: "request-code",
+          phoneNumber:
+            typeof (args as { phoneNumber?: unknown }).phoneNumber === "string"
+              ? (args as { phoneNumber?: string }).phoneNumber
+              : undefined,
+          timeoutMs:
+            typeof (args as { timeoutMs?: unknown }).timeoutMs === "number"
+              ? (args as { timeoutMs?: number }).timeoutMs
+              : undefined,
+        });
+        return {
+          content: [{ type: "text", text: result.message }],
+          details: { qr: false, mode: "request-code" },
         };
       }
 

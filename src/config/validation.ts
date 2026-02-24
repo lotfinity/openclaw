@@ -220,10 +220,19 @@ function validateConfigObjectWithPluginsBase(
     }
   }
 
+  const allowedChannels = new Set<string>(["defaults", "websiteassist", ...CHANNEL_IDS]);
+  for (const record of registry.plugins) {
+    for (const channelId of record.channels) {
+      allowedChannels.add(channelId);
+    }
+  }
+
+  // Check plugins.entries — skip known channel IDs (e.g. "websiteassist") since those are
+  // valid channel config keys that may appear here without being registered plugins.
   const entries = pluginsConfig?.entries;
   if (entries && isRecord(entries)) {
     for (const pluginId of Object.keys(entries)) {
-      if (!knownIds.has(pluginId)) {
+      if (!knownIds.has(pluginId) && !allowedChannels.has(pluginId)) {
         issues.push({
           path: `plugins.entries.${pluginId}`,
           message: `plugin not found: ${pluginId}`,
@@ -264,13 +273,6 @@ function validateConfigObjectWithPluginsBase(
       path: "plugins.slots.memory",
       message: `plugin not found: ${memorySlot}`,
     });
-  }
-
-  const allowedChannels = new Set<string>(["defaults", ...CHANNEL_IDS]);
-  for (const record of registry.plugins) {
-    for (const channelId of record.channels) {
-      allowedChannels.add(channelId);
-    }
   }
 
   if (config.channels && isRecord(config.channels)) {

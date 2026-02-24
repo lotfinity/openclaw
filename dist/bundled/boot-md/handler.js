@@ -1,39 +1,40 @@
 import "../../paths-BZtyHNCi.js";
-import { E as resolveAgentIdFromSessionKey, T as normalizeMainKey, l as ensureAgentWorkspace, w as normalizeAgentId } from "../../workspace-CUznpDHg.js";
-import { _ as DEFAULT_CHAT_CHANNEL, d as defaultRuntime, l as createSubsystemLogger } from "../../exec-DBtWJ4Ld.js";
-import { a as resolveAgentModelPrimary, i as resolveAgentModelFallbacksOverride, o as resolveAgentSkillsFilter, r as resolveAgentDir, s as resolveAgentWorkspaceDir, t as listAgentIds } from "../../agent-scope-xZu8sXcF.js";
-import { a as normalizeOutboundPayloadsForJson, i as normalizeOutboundPayloads, r as formatOutboundPayloadLog, t as deliverOutboundPayloads, w as SILENT_REPLY_TOKEN } from "../../deliver-5-OMPYie.js";
-import { A as getSkillsSnapshotVersion, G as resolveAgentTimeoutMs, J as clearAgentRunContext, K as AGENT_LANE_NESTED, M as clearSessionAuthProfileOverride, N as applyModelOverrideToSessionEntry, O as resolveSendPolicy, P as applyVerboseOverride, T as hasNonzeroUsage, X as registerAgentRunContext, Y as emitAgentEvent, b as resolveSessionDeliveryTarget, g as runCliAgent, h as setCliSessionId, j as lookupContextTokens, k as getRemoteSkillEligibility, m as getCliSessionId, t as runEmbeddedPiAgent, w as deriveSessionTotalTokens, x as runWithModelFallback, y as resolveOutboundTarget } from "../../pi-embedded-CnI42KAF.js";
-import { F as getChannelPlugin, L as normalizeChannelId, b as resolveMessageChannel, f as INTERNAL_MESSAGE_CHANNEL, h as isInternalMessageChannel, m as isGatewayMessageChannel, p as isDeliverableMessageChannel, v as normalizeMessageChannel } from "../../image-ops-CEhvmfZb.js";
-import "../../boolean-Bb19hm9Y.js";
-import { C as modelKey, E as resolveConfiguredModelRef, L as DEFAULT_CONTEXT_TOKENS, R as DEFAULT_MODEL, S as isCliProvider, h as ensureAuthProfileStore, k as resolveThinkingDefault, y as buildAllowedModelSet, z as DEFAULT_PROVIDER } from "../../model-auth-BWNeE8AB.js";
-import { t as formatCliCommand } from "../../command-format-BmTFj7S4.js";
-import { n as loadConfig } from "../../config-CVffLdk5.js";
-import "../../send-Cub4Nsuw.js";
-import "../../send-BtvGUSXk.js";
-import "../../send-4bIR7FXu.js";
-import "../../github-copilot-token-BRNzgUa_.js";
-import "../../pi-model-discovery-Cexg1XRf.js";
-import { J as loadSessionStore, Nt as buildWorkspaceSkillSnapshot, Q as updateSessionStore, a as formatXHighModelHint, d as normalizeVerboseLevel, dt as resolveChannelResetConfig, ft as resolveSessionResetPolicy, i as formatThinkingLevels, l as normalizeThinkLevel, lt as resolveSessionKey, p as supportsXHighThinking, pt as resolveSessionResetType, st as normalizeAccountId, ut as evaluateSessionFreshness, vt as resolveExplicitAgentSessionKey, yt as resolveMainSessionKey } from "../../pi-embedded-helpers-B_YOUdeC.js";
-import "../../chrome-DdEflVKx.js";
-import "../../frontmatter-Uu27Y56g.js";
-import "../../store-BuZmjkEs.js";
-import { n as resolveSessionFilePath, s as resolveStorePath } from "../../paths-CpGplyYJ.js";
-import "../../tool-images-dt0J2V2W.js";
-import "../../image-BNHc4FrW.js";
-import "../../manager-CALHsdun.js";
-import "../../sqlite-Dashr12i.js";
-import "../../retry-BhlI4gtw.js";
-import "../../redact-DcuzVizL.js";
-import "../../common-Cw7R_-Wi.js";
-import "../../ir-BV_fXRLV.js";
-import "../../fetch-m-t-1bsN.js";
-import "../../render-CiikiGbn.js";
-import { s as loadModelCatalog } from "../../runner-CNahr7vF.js";
-import "../../send-CA5hkmej.js";
-import "../../send-C3lYS4AR.js";
-import "../../channel-activity-BHDtnoEK.js";
-import "../../tables-C7hTs082.js";
+import { E as resolveAgentIdFromSessionKey, T as normalizeMainKey, l as ensureAgentWorkspace, w as normalizeAgentId } from "../../workspace-Dht53wE1.js";
+import "../../globals-CChor1I6.js";
+import { _ as DEFAULT_CHAT_CHANNEL, d as defaultRuntime, l as createSubsystemLogger } from "../../exec-BQEPx-ye.js";
+import { a as resolveAgentModelPrimary, i as resolveAgentModelFallbacksOverride, o as resolveAgentSkillsFilter, r as resolveAgentDir, s as resolveAgentWorkspaceDir, t as listAgentIds } from "../../agent-scope-427kGsvr.js";
+import { a as normalizeOutboundPayloadsForJson, i as normalizeOutboundPayloads, r as formatOutboundPayloadLog, t as deliverOutboundPayloads, w as SILENT_REPLY_TOKEN } from "../../deliver-C8AljmdH.js";
+import { A as getSkillsSnapshotVersion, G as resolveAgentTimeoutMs, J as clearAgentRunContext, K as AGENT_LANE_NESTED, M as clearSessionAuthProfileOverride, N as applyModelOverrideToSessionEntry, O as resolveSendPolicy, P as applyVerboseOverride, T as hasNonzeroUsage, X as registerAgentRunContext, Y as emitAgentEvent, b as resolveSessionDeliveryTarget, g as runCliAgent, h as setCliSessionId, j as lookupContextTokens, k as getRemoteSkillEligibility, m as getCliSessionId, t as runEmbeddedPiAgent, w as deriveSessionTotalTokens, x as runWithModelFallback, y as resolveOutboundTarget } from "../../pi-embedded-D9Xlruoq.js";
+import { F as getChannelPlugin, L as normalizeChannelId, b as resolveMessageChannel, f as INTERNAL_MESSAGE_CHANNEL, h as isInternalMessageChannel, m as isGatewayMessageChannel, p as isDeliverableMessageChannel, v as normalizeMessageChannel } from "../../image-ops-DJr_zui1.js";
+import "../../boolean-M-esQJt6.js";
+import { C as modelKey, E as resolveConfiguredModelRef, L as DEFAULT_CONTEXT_TOKENS, R as DEFAULT_MODEL, S as isCliProvider, h as ensureAuthProfileStore, k as resolveThinkingDefault, y as buildAllowedModelSet, z as DEFAULT_PROVIDER } from "../../model-auth-rkykBFXg.js";
+import { t as formatCliCommand } from "../../command-format-BUxhT1xL.js";
+import { n as loadConfig } from "../../config-C_7tWQ0S.js";
+import "../../send-B5eVMSDZ.js";
+import "../../send-DY96NkZX.js";
+import "../../send-e5GwXb7T.js";
+import "../../github-copilot-token-4X8-0wUE.js";
+import "../../pi-model-discovery-VBAdnbQf.js";
+import { J as loadSessionStore, Nt as buildWorkspaceSkillSnapshot, Q as updateSessionStore, a as formatXHighModelHint, d as normalizeVerboseLevel, dt as resolveChannelResetConfig, ft as resolveSessionResetPolicy, i as formatThinkingLevels, l as normalizeThinkLevel, lt as resolveSessionKey, p as supportsXHighThinking, pt as resolveSessionResetType, st as normalizeAccountId, ut as evaluateSessionFreshness, vt as resolveExplicitAgentSessionKey, yt as resolveMainSessionKey } from "../../pi-embedded-helpers-CYd73rxj.js";
+import "../../chrome-D3tFHzA1.js";
+import "../../frontmatter-SgwYJVjt.js";
+import "../../store-ov4a2adx.js";
+import { n as resolveSessionFilePath, s as resolveStorePath } from "../../paths-DDhvEXEU.js";
+import "../../tool-images-DfDx_oW4.js";
+import "../../image-BAkoprzz.js";
+import "../../manager-gmbbaLoC.js";
+import "../../sqlite-Bj1D57vs.js";
+import "../../retry-BdLoxDsS.js";
+import "../../redact-RNXCZggR.js";
+import "../../common-D853WxXh.js";
+import "../../ir-lbjn02kw.js";
+import "../../fetch-vd0qZNQg.js";
+import "../../render-DSLzcBxk.js";
+import { s as loadModelCatalog } from "../../runner-B5C80-q2.js";
+import "../../send-QbLcJMA8.js";
+import "../../send-CV5wmEgF.js";
+import "../../channel-activity-BOjK-3Er.js";
+import "../../tables-BxHiNvIM.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -42,27 +43,27 @@ import crypto from "node:crypto";
 function createDefaultDeps() {
 	return {
 		sendMessageWhatsApp: async (...args) => {
-			const { sendMessageWhatsApp } = await import("../../web-xQs3nM6S.js");
+			const { sendMessageWhatsApp } = await import("../../web-DX3UDRL6.js");
 			return await sendMessageWhatsApp(...args);
 		},
 		sendMessageTelegram: async (...args) => {
-			const { sendMessageTelegram } = await import("../../send-4bIR7FXu.js").then((n) => n.s);
+			const { sendMessageTelegram } = await import("../../send-e5GwXb7T.js").then((n) => n.s);
 			return await sendMessageTelegram(...args);
 		},
 		sendMessageDiscord: async (...args) => {
-			const { sendMessageDiscord } = await import("../../send-BtvGUSXk.js").then((n) => n.t);
+			const { sendMessageDiscord } = await import("../../send-DY96NkZX.js").then((n) => n.t);
 			return await sendMessageDiscord(...args);
 		},
 		sendMessageSlack: async (...args) => {
-			const { sendMessageSlack } = await import("../../send-Cub4Nsuw.js").then((n) => n.n);
+			const { sendMessageSlack } = await import("../../send-B5eVMSDZ.js").then((n) => n.n);
 			return await sendMessageSlack(...args);
 		},
 		sendMessageSignal: async (...args) => {
-			const { sendMessageSignal } = await import("../../send-CA5hkmej.js").then((n) => n.i);
+			const { sendMessageSignal } = await import("../../send-QbLcJMA8.js").then((n) => n.i);
 			return await sendMessageSignal(...args);
 		},
 		sendMessageIMessage: async (...args) => {
-			const { sendMessageIMessage } = await import("../../send-C3lYS4AR.js").then((n) => n.n);
+			const { sendMessageIMessage } = await import("../../send-CV5wmEgF.js").then((n) => n.n);
 			return await sendMessageIMessage(...args);
 		}
 	};

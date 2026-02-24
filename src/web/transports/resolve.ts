@@ -2,7 +2,7 @@ import type { OpenClawConfig } from "../../config/config.js";
 import type { WhatsAppTransportId } from "../../config/types.whatsapp.js";
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "../../routing/session-key.js";
 
-export const DEFAULT_WHATSAPP_TRANSPORT: WhatsAppTransportId = "baileys";
+export const DEFAULT_WHATSAPP_TRANSPORT: WhatsAppTransportId = "waha";
 
 export function resolveWhatsAppTransportId(
   cfg: OpenClawConfig,

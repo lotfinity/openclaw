@@ -256,4 +256,197 @@ describe("config form renderer", () => {
     const analysis = analyzeConfigSchema(schema);
     expect(analysis.unsupportedPaths).toContain("extra");
   });
+
+  it("hides WhatsApp authDir when effective transport is waha", () => {
+    const onPatch = vi.fn();
+    const container = document.createElement("div");
+    const schema = {
+      type: "object",
+      properties: {
+        channels: {
+          type: "object",
+          properties: {
+            whatsapp: {
+              type: "object",
+              properties: {
+                transport: { type: "string", enum: ["baileys", "waha"] },
+                accounts: {
+                  type: "object",
+                  additionalProperties: {
+                    type: "object",
+                    properties: {
+                      transport: { type: "string", enum: ["baileys", "waha"] },
+                      authDir: { type: "string" },
+                      waha: {
+                        type: "object",
+                        properties: {
+                          baseUrl: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const analysis = analyzeConfigSchema(schema);
+    render(
+      renderConfigForm({
+        schema: analysis.schema,
+        uiHints: {},
+        unsupportedPaths: analysis.unsupportedPaths,
+        value: {
+          channels: {
+            whatsapp: {
+              transport: "waha",
+              accounts: {
+                work: {
+                  waha: { baseUrl: "https://waha.example" },
+                },
+              },
+            },
+          },
+        },
+        onPatch,
+      }),
+      container,
+    );
+
+    expect(container.textContent).toContain("Waha");
+    expect(container.textContent).not.toContain("Auth Dir");
+  });
+
+  it("keeps WhatsApp authDir hidden even if config still contains baileys transport", () => {
+    const onPatch = vi.fn();
+    const container = document.createElement("div");
+    const schema = {
+      type: "object",
+      properties: {
+        channels: {
+          type: "object",
+          properties: {
+            whatsapp: {
+              type: "object",
+              properties: {
+                transport: { type: "string", enum: ["baileys", "waha"] },
+                accounts: {
+                  type: "object",
+                  additionalProperties: {
+                    type: "object",
+                    properties: {
+                      transport: { type: "string", enum: ["baileys", "waha"] },
+                      authDir: { type: "string" },
+                      waha: {
+                        type: "object",
+                        properties: {
+                          baseUrl: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const analysis = analyzeConfigSchema(schema);
+    render(
+      renderConfigForm({
+        schema: analysis.schema,
+        uiHints: {},
+        unsupportedPaths: analysis.unsupportedPaths,
+        value: {
+          channels: {
+            whatsapp: {
+              transport: "waha",
+              accounts: {
+                work: {
+                  transport: "baileys",
+                  authDir: "/tmp/wa-work",
+                },
+              },
+            },
+          },
+        },
+        onPatch,
+      }),
+      container,
+    );
+
+    expect(container.textContent).not.toContain("Auth Dir");
+  });
+
+  it("hides channel-level WhatsApp transport defaults when accounts exist", () => {
+    const onPatch = vi.fn();
+    const container = document.createElement("div");
+    const schema = {
+      type: "object",
+      properties: {
+        channels: {
+          type: "object",
+          properties: {
+            whatsapp: {
+              type: "object",
+              properties: {
+                transport: { type: "string", enum: ["baileys", "waha"] },
+                waha: {
+                  type: "object",
+                  properties: {
+                    baseUrl: { type: "string" },
+                  },
+                },
+                accounts: {
+                  type: "object",
+                  additionalProperties: {
+                    type: "object",
+                    properties: {
+                      transport: { type: "string", enum: ["baileys", "waha"] },
+                      waha: {
+                        type: "object",
+                        properties: {
+                          baseUrl: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const analysis = analyzeConfigSchema(schema);
+    render(
+      renderConfigForm({
+        schema: analysis.schema,
+        uiHints: {},
+        unsupportedPaths: analysis.unsupportedPaths,
+        value: {
+          channels: {
+            whatsapp: {
+              transport: "waha",
+              waha: { baseUrl: "https://root-waha.example" },
+              accounts: {
+                work: {
+                  transport: "waha",
+                  waha: { baseUrl: "https://account-waha.example" },
+                },
+              },
+            },
+          },
+        },
+        onPatch,
+      }),
+      container,
+    );
+
+    const transportLabels = (container.textContent ?? "").match(/Transport/g) ?? [];
+    expect(transportLabels.length).toBe(1);
+  });
 });

@@ -37,10 +37,12 @@ extension ChannelsStore {
                 params: params,
                 timeoutMs: 12000)
             self.snapshot = snap
+            self.whatsappRuntimeStatus = self.resolveWhatsAppRuntimeStatus(from: snap)
             self.lastSuccess = Date()
             self.lastError = nil
         } catch {
             self.lastError = error.localizedDescription
+            self.whatsappRuntimeStatus = nil
         }
     }
 
@@ -53,6 +55,7 @@ extension ChannelsStore {
             let params: [String: AnyCodable] = [
                 "force": AnyCodable(force),
                 "timeoutMs": AnyCodable(30000),
+                "mode": AnyCodable("qr"),
             ]
             let result: WhatsAppLoginStartResult = try await GatewayConnection.shared.requestDecoded(
                 method: .webLoginStart,
@@ -96,6 +99,30 @@ extension ChannelsStore {
         await self.refresh(probe: true)
     }
 
+    func requestWhatsAppPairCode() async {
+        guard !self.whatsappBusy else { return }
+        self.whatsappBusy = true
+        defer { self.whatsappBusy = false }
+        do {
+            let phone = self.whatsappLinkPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+            let params: [String: AnyCodable] = [
+                "mode": AnyCodable("request-code"),
+                "phoneNumber": AnyCodable(phone),
+                "timeoutMs": AnyCodable(15000),
+            ]
+            let result: WhatsAppLoginStartResult = try await GatewayConnection.shared.requestDecoded(
+                method: .webLoginStart,
+                params: params,
+                timeoutMs: 20000)
+            self.whatsappLoginMessage = result.message
+            self.whatsappLoginQrDataUrl = result.qrDataUrl
+            self.whatsappLoginConnected = nil
+        } catch {
+            self.whatsappLoginMessage = error.localizedDescription
+        }
+        await self.refresh(probe: true)
+    }
+
     func logoutWhatsApp() async {
         guard !self.whatsappBusy else { return }
         self.whatsappBusy = true
@@ -108,9 +135,17 @@ extension ChannelsStore {
                 method: .channelsLogout,
                 params: params,
                 timeoutMs: 15000)
-            self.whatsappLoginMessage = result.cleared
-                ? "Logged out and cleared credentials."
-                : "No WhatsApp session found."
+            if result.remoteLoggedOut == true && result.localCleared == true {
+                self.whatsappLoginMessage = "WAHA session logged out and local credentials cleared."
+            } else if result.remoteLoggedOut == true {
+                self.whatsappLoginMessage = "WAHA session logged out."
+            } else if result.localCleared == true {
+                self.whatsappLoginMessage = "Logged out and cleared local credentials."
+            } else if result.cleared {
+                self.whatsappLoginMessage = "WhatsApp session logout completed."
+            } else {
+                self.whatsappLoginMessage = "No WhatsApp session found."
+            }
             self.whatsappLoginQrDataUrl = nil
         } catch {
             self.whatsappLoginMessage = error.localizedDescription
@@ -160,4 +195,22 @@ private struct ChannelLogoutResult: Codable {
     let accountId: String?
     let cleared: Bool
     let envToken: Bool?
+    let remoteLoggedOut: Bool?
+    let localCleared: Bool?
+}
+
+private extension ChannelsStore {
+    func resolveWhatsAppRuntimeStatus(from snap: ChannelsStatusSnapshot) -> String? {
+        guard let status = snap.decodeChannel("whatsapp", as: ChannelsStatusSnapshot.WhatsAppStatus.self)
+        else { return nil }
+        let linked = status.linked ? "linked" : "not linked"
+        let connection = status.connected ? "connected" : "disconnected"
+        var parts = [linked, connection]
+        if let lastError = status.lastError, !lastError.isEmpty {
+            parts.append("error: \(lastError)")
+        } else if let disconnect = status.lastDisconnect?.error, !disconnect.isEmpty {
+            parts.append("last disconnect: \(disconnect)")
+        }
+        return parts.joined(separator: " • ")
+    }
 }

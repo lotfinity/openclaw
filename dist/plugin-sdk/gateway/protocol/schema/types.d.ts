@@ -1,7 +1,7 @@
 import type { Static } from "@sinclair/typebox";
 import type { AgentEventSchema, AgentIdentityParamsSchema, AgentIdentityResultSchema, AgentWaitParamsSchema, PollParamsSchema, WakeParamsSchema } from "./agent.js";
 import type { AgentSummarySchema, AgentsFileEntrySchema, AgentsCreateParamsSchema, AgentsCreateResultSchema, AgentsDeleteParamsSchema, AgentsDeleteResultSchema, AgentsFilesGetParamsSchema, AgentsFilesGetResultSchema, AgentsFilesListParamsSchema, AgentsFilesListResultSchema, AgentsFilesSetParamsSchema, AgentsFilesSetResultSchema, AgentsListParamsSchema, AgentsListResultSchema, AgentsUpdateParamsSchema, AgentsUpdateResultSchema, ModelChoiceSchema, ModelsListParamsSchema, ModelsListResultSchema, SkillsBinsParamsSchema, SkillsBinsResultSchema, SkillsInstallParamsSchema, SkillsStatusParamsSchema, SkillsUpdateParamsSchema } from "./agents-models-skills.js";
-import type { ChannelsLogoutParamsSchema, TalkConfigParamsSchema, TalkConfigResultSchema, ChannelsStatusParamsSchema, ChannelsStatusResultSchema, TalkModeParamsSchema, WebLoginStartParamsSchema, WebLoginWaitParamsSchema } from "./channels.js";
+import type { ChannelsLogoutParamsSchema, TalkConfigParamsSchema, TalkConfigResultSchema, ChannelsStatusParamsSchema, ChannelsStatusResultSchema, TalkModeParamsSchema, WebLoginStartParamsSchema, WebWhatsAppScreenshotParamsSchema, WebLoginWaitParamsSchema } from "./channels.js";
 import type { ConfigApplyParamsSchema, ConfigGetParamsSchema, ConfigPatchParamsSchema, ConfigSchemaParamsSchema, ConfigSchemaResponseSchema, ConfigSetParamsSchema, UpdateRunParamsSchema } from "./config.js";
 import type { CronAddParamsSchema, CronJobSchema, CronListParamsSchema, CronRemoveParamsSchema, CronRunLogEntrySchema, CronRunParamsSchema, CronRunsParamsSchema, CronStatusParamsSchema, CronUpdateParamsSchema } from "./cron.js";
 import type { DevicePairApproveParamsSchema, DevicePairListParamsSchema, DevicePairRejectParamsSchema, DeviceTokenRevokeParamsSchema, DeviceTokenRotateParamsSchema } from "./devices.js";
@@ -69,6 +69,7 @@ export type ChannelsStatusResult = Static<typeof ChannelsStatusResultSchema>;
 export type ChannelsLogoutParams = Static<typeof ChannelsLogoutParamsSchema>;
 export type WebLoginStartParams = Static<typeof WebLoginStartParamsSchema>;
 export type WebLoginWaitParams = Static<typeof WebLoginWaitParamsSchema>;
+export type WebWhatsAppScreenshotParams = Static<typeof WebWhatsAppScreenshotParamsSchema>;
 export type AgentSummary = Static<typeof AgentSummarySchema>;
 export type AgentsFileEntry = Static<typeof AgentsFileEntrySchema>;
 export type AgentsCreateParams = Static<typeof AgentsCreateParamsSchema>;

@@ -184,6 +184,8 @@ export type ChannelGatewayAdapter<ResolvedAccount = unknown> = {
         force?: boolean;
         timeoutMs?: number;
         verbose?: boolean;
+        mode?: "qr" | "request-code";
+        phoneNumber?: string;
     }) => Promise<ChannelLoginWithQrStartResult>;
     loginWithQrWait?: (params: {
         accountId?: string;

@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenClaw Website Widget Sample</title>
+    <style>
+      :root {
+        --ink: #0f172a;
+        --muted: #475569;
+        --panel: #ffffff;
+        --line: #dbe2ea;
+        --bg1: #f8fafc;
+        --bg2: #ecfeff;
+      }
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(1100px 500px at 5% -10%, var(--bg2), transparent),
+          radial-gradient(900px 500px at 100% 0%, #f1f5f9, transparent), var(--bg1);
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 36px 20px 220px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 2.1rem;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0 0 12px;
+        line-height: 1.5;
+      }
+      code {
+        background: #e2e8f0;
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+      .hero {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 12px 34px rgba(2, 12, 27, 0.08);
+      }
+      .hero p {
+        color: var(--muted);
+      }
+      .stats {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .stat {
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .stat strong {
+        display: block;
+        font-size: 1.1rem;
+      }
+      .section-title {
+        margin: 28px 0 10px;
+        font-size: 1.15rem;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .card p {
+        color: var(--muted);
+      }
+      .steps {
+        margin-top: 12px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+      }
+      .steps ol {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .steps li {
+        margin-bottom: 8px;
+        color: var(--muted);
+      }
+      footer {
+        margin-top: 26px;
+        color: var(--muted);
+      }
+      .debug {
+        margin-top: 16px;
+        background: #0b1220;
+        color: #d6e4ff;
+        border-radius: 14px;
+        border: 1px solid #1f2a44;
+        padding: 14px;
+      }
+      .debug h3 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+      }
+      .debug-grid {
+        display: grid;
+        grid-template-columns: 2fr 2fr auto;
+        gap: 8px;
+      }
+      .debug input,
+      .debug button {
+        border-radius: 8px;
+        border: 1px solid #2f3c5b;
+        font-size: 0.95rem;
+      }
+      .debug input {
+        background: #111a2d;
+        color: #e6edff;
+        padding: 10px 11px;
+      }
+      .debug button {
+        padding: 10px 14px;
+        background: #22c55e;
+        color: #04130a;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .debug-meta {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        color: #a8bddf;
+      }
+      .debug-log {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        background: #111a2d;
+        border: 1px solid #2f3c5b;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.85rem;
+        line-height: 1.45;
+        max-height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      @media (max-width: 860px) {
+        .stats,
+        .cards {
+          grid-template-columns: 1fr;
+        }
+        .debug-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <h1>OpenClaw Widget Quick Test</h1>
+        <p>
+          Use this page to see how the launcher and expanded panel behave on a realistic layout.
+        </p>
+        <p>
+          Update <code>gatewayUrl</code> to your tunnel hostname. Keep <code>token</code> empty for
+          one-time prompt auth.
+        </p>
+        <div class="stats">
+          <div class="stat">
+            <strong>99.95%</strong>
+            Onboarding uptime
+          </div>
+          <div class="stat">
+            <strong>2m 12s</strong>
+            Avg first reply time
+          </div>
+          <div class="stat">
+            <strong>14</strong>
+            Supported channels
+          </div>
+        </div>
+      </section>
+
+      <h2 class="section-title">Common User Questions</h2>
+      <div class="cards">
+        <article class="card">
+          <h3>Authentication</h3>
+          <p>
+            Guide users through first login, token pairing, and troubleshooting blocked sessions.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Device Onboarding</h3>
+          <p>Explain how to connect phone/desktop clients and validate channel connectivity.</p>
+        </article>
+        <article class="card">
+          <h3>Status Checks</h3>
+          <p>Share quick diagnostics and "what to run next" based on gateway health.</p>
+        </article>
+      </div>
+
+      <h2 class="section-title">Setup Walkthrough</h2>
+      <section class="steps">
+        <ol>
+          <li>Open your website and verify the widget auto-opens at load.</li>
+          <li>Enter token/password once when prompted (unless prefilled).</li>
+          <li>Ask onboarding questions and confirm your local OpenClaw agent replies.</li>
+          <li>Reload to ensure auth persistence and session continuity.</li>
+        </ol>
+      </section>
+
+      <section class="debug">
+        <h3>Widget Debug Console</h3>
+        <div class="debug-grid">
+          <input id="debug-gateway-url" type="text" placeholder="wss://your-tunnel.example.com" />
+          <input id="debug-token" type="password" placeholder="token/password (optional)" />
+          <button id="debug-run" type="button">Run probe</button>
+        </div>
+        <div class="debug-meta" id="debug-status">Status: idle</div>
+        <div class="debug-log" id="debug-log">Waiting for first probe...</div>
+      </section>
+
+      <footer>OpenClaw sample page for widget behavior testing.</footer>
+    </main>
+
+    <script>
+      window.OpenClawWidgetConfig = {
+        token: "",
+        gatewayUrl: "wss://YOUR-TUNNEL-HOSTNAME.example.com",
+        sessionKey: "widget:quick-test",
+        title: "OpenClaw Support",
+        accentColor: "#0f766e",
+        launcherLabel: "Help",
+        placeholder: "Ask about onboarding or auth setup...",
+        widgetWidth: "420px",
+        widgetHeight: "680px",
+        position: "right",
+        autoOpen: true,
+      };
+    </script>
+    <script src="https://YOUR-TUNNEL-HOSTNAME.example.com/widget/openclaw-widget.js" defer></script>
+    <script>
+      (() => {
+        const protocolVersion = 3;
+        const gatewayInput = document.getElementById("debug-gateway-url");
+        const tokenInput = document.getElementById("debug-token");
+        const runBtn = document.getElementById("debug-run");
+        const statusEl = document.getElementById("debug-status");
+        const logEl = document.getElementById("debug-log");
+
+        gatewayInput.value = window.OpenClawWidgetConfig.gatewayUrl || "";
+        tokenInput.value = window.OpenClawWidgetConfig.token || "";
+
+        function setStatus(text) {
+          statusEl.textContent = "Status: " + text;
+        }
+
+        function setLog(lines) {
+          logEl.textContent = lines.join("\n");
+        }
+
+        function now() {
+          return new Date().toISOString().split("T")[1]?.replace("Z", "") || "";
+        }
+
+        function parseErrorFrame(frame) {
+          const error =
+            frame && frame.error && typeof frame.error === "object" ? frame.error : null;
+          const message =
+            error && typeof error.message === "string" ? error.message : "unknown error";
+          const code = error && typeof error.code === "string" ? error.code : "unknown_code";
+          const details = error && error.details ? JSON.stringify(error.details) : "";
+          return { message, code, details };
+        }
+
+        async function runProbe() {
+          const gatewayUrl = gatewayInput.value.trim();
+          const token = tokenInput.value.trim();
+          const lines = [];
+          if (!gatewayUrl) {
+            setStatus("missing gateway URL");
+            setLog(["Provide a gateway URL first."]);
+            return;
+          }
+
+          setStatus("probing...");
+          lines.push("[" + now() + "] opening websocket to " + gatewayUrl);
+          setLog(lines);
+
+          await new Promise((resolve) => {
+            const startedAt = Date.now();
+            const ws = new WebSocket(gatewayUrl);
+            let done = false;
+
+            const timeout = window.setTimeout(() => {
+              if (done) return;
+              done = true;
+              try {
+                ws.close();
+              } catch {
+                // noop
+              }
+              lines.push("[" + now() + "] timeout waiting for connect response");
+              setStatus("timeout");
+              setLog(lines);
+              resolve(null);
+            }, 12000);
+
+            const finish = (status, line) => {
+              if (done) return;
+              done = true;
+              window.clearTimeout(timeout);
+              lines.push("[" + now() + "] " + line);
+              setStatus(status);
+              setLog(lines);
+              try {
+                ws.close();
+              } catch {
+                // noop
+              }
+              resolve(null);
+            };
+
+            ws.addEventListener("open", () => {
+              lines.push("[" + now() + "] websocket open (" + (Date.now() - startedAt) + "ms)");
+              setLog(lines);
+              const frame = {
+                type: "req",
+                id: "sample-widget-probe",
+                method: "connect",
+                params: {
+                  minProtocol: protocolVersion,
+                  maxProtocol: protocolVersion,
+                  client: {
+                    id: "webchat-ui",
+                    version: "sample-debug",
+                    platform: "web",
+                    mode: "webchat",
+                    displayName: "Widget Debug Console",
+                  },
+                  role: "operator",
+                  scopes: [],
+                  auth: token ? { token, password: token } : undefined,
+                },
+              };
+              ws.send(JSON.stringify(frame));
+              lines.push("[" + now() + "] sent connect request");
+              setLog(lines);
+            });
+
+            ws.addEventListener("message", (event) => {
+              let parsed;
+              try {
+                parsed = JSON.parse(String(event.data || ""));
+              } catch {
+                finish("failed", "received non-JSON frame");
+                return;
+              }
+
+              if (parsed.type !== "res" || parsed.id !== "sample-widget-probe") {
+                return;
+              }
+
+              if (parsed.ok) {
+                finish("connected", "connect accepted by gateway");
+                return;
+              }
+
+              const info = parseErrorFrame(parsed);
+              finish(
+                "rejected",
+                "connect rejected: " +
+                  info.message +
+                  " (code=" +
+                  info.code +
+                  ")" +
+                  (info.details ? " details=" + info.details : ""),
+              );
+            });
+
+            ws.addEventListener("error", () => {
+              finish("network error", "websocket error event (tunnel/DNS/TLS/origin issue)");
+            });
+
+            ws.addEventListener("close", (event) => {
+              if (done) return;
+              finish("closed", "socket closed before connect response (code=" + event.code + ")");
+            });
+          });
+        }
+
+        runBtn.addEventListener("click", () => {
+          void runProbe();
+        });
+      })();
+    </script>
+  </body>
+</html>

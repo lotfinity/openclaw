@@ -30,6 +30,14 @@ export type WebInboundMessage = {
     selfJid?: string | null;
     selfE164?: string | null;
     location?: NormalizedLocation;
+    pollVote?: {
+        question: string;
+        selectedOptions: string[];
+    };
+    reaction?: {
+        emoji: string;
+        reactedToMessageId: string;
+    };
     sendComposing: () => Promise<void>;
     reply: (text: string) => Promise<void>;
     sendMedia: (payload: AnyMessageContent) => Promise<void>;

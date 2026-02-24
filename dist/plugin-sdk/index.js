@@ -29,7 +29,7 @@ import "@buape/carbon";
 import "discord-api-types/payloads/v10";
 import "markdown-it";
 import "@clack/prompts";
-import WebSocket, { WebSocket as WebSocket$1 } from "ws";
+import WebSocket$1, { WebSocket } from "ws";
 import { Buffer as Buffer$1 } from "node:buffer";
 import { WebClient } from "@slack/web-api";
 import "yaml";
@@ -4863,7 +4863,7 @@ function readWebSelfId(authDir = resolveDefaultWebAuthDir()) {
 
 //#endregion
 //#region src/web/transports/resolve.ts
-const DEFAULT_WHATSAPP_TRANSPORT = "baileys";
+const DEFAULT_WHATSAPP_TRANSPORT = "waha";
 function resolveWhatsAppTransportId(cfg, accountId) {
 	const normalizedId = normalizeAccountId((accountId ?? "").trim() || DEFAULT_ACCOUNT_ID);
 	const accountTransport = cfg.channels?.whatsapp?.accounts?.[normalizedId]?.transport;
@@ -12891,9 +12891,15 @@ function validateConfigObjectWithPluginsBase(raw, opts) {
 			message
 		});
 	}
+	const allowedChannels = new Set([
+		"defaults",
+		"websiteassist",
+		...CHANNEL_IDS
+	]);
+	for (const record of registry.plugins) for (const channelId of record.channels) allowedChannels.add(channelId);
 	const entries = pluginsConfig?.entries;
 	if (entries && isRecord(entries)) {
-		for (const pluginId of Object.keys(entries)) if (!knownIds.has(pluginId)) issues.push({
+		for (const pluginId of Object.keys(entries)) if (!knownIds.has(pluginId) && !allowedChannels.has(pluginId)) issues.push({
 			path: `plugins.entries.${pluginId}`,
 			message: `plugin not found: ${pluginId}`
 		});
@@ -12919,8 +12925,6 @@ function validateConfigObjectWithPluginsBase(raw, opts) {
 		path: "plugins.slots.memory",
 		message: `plugin not found: ${memorySlot}`
 	});
-	const allowedChannels = new Set(["defaults", ...CHANNEL_IDS]);
-	for (const record of registry.plugins) for (const channelId of record.channels) allowedChannels.add(channelId);
 	if (config.channels && isRecord(config.channels)) for (const key of Object.keys(config.channels)) {
 		const trimmed = key.trim();
 		if (!trimmed) continue;
@@ -17846,12 +17850,18 @@ const WebLoginStartParamsSchema = Type.Object({
 	force: Type.Optional(Type.Boolean()),
 	timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
 	verbose: Type.Optional(Type.Boolean()),
-	accountId: Type.Optional(Type.String())
+	accountId: Type.Optional(Type.String()),
+	mode: Type.Optional(Type.Unsafe({
+		type: "string",
+		enum: ["qr", "request-code"]
+	})),
+	phoneNumber: Type.Optional(Type.String())
 }, { additionalProperties: false });
 const WebLoginWaitParamsSchema = Type.Object({
 	timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
 	accountId: Type.Optional(Type.String())
 }, { additionalProperties: false });
+const WebWhatsAppScreenshotParamsSchema = Type.Object({ accountId: Type.Optional(Type.String()) }, { additionalProperties: false });
 
 //#endregion
 //#region src/gateway/protocol/schema/config.ts
@@ -18668,6 +18678,7 @@ const validateChatEvent = ajv.compile(ChatEventSchema);
 const validateUpdateRunParams = ajv.compile(UpdateRunParamsSchema);
 const validateWebLoginStartParams = ajv.compile(WebLoginStartParamsSchema);
 const validateWebLoginWaitParams = ajv.compile(WebLoginWaitParamsSchema);
+const validateWebWhatsAppScreenshotParams = ajv.compile(WebWhatsAppScreenshotParamsSchema);
 
 //#endregion
 //#region src/gateway/client.ts
@@ -18708,7 +18719,7 @@ var GatewayClient = class {
 				if (fingerprint !== expected) return /* @__PURE__ */ new Error("gateway tls fingerprint mismatch");
 			});
 		}
-		this.ws = new WebSocket$1(url, wsOptions);
+		this.ws = new WebSocket(url, wsOptions);
 		this.ws.on("open", () => {
 			if (url.startsWith("wss://") && this.opts.tlsFingerprint) {
 				const tlsError = this.validateTlsFingerprint();
@@ -18916,7 +18927,7 @@ var GatewayClient = class {
 		return null;
 	}
 	async request(method, params, opts) {
-		if (!this.ws || this.ws.readyState !== WebSocket$1.OPEN) throw new Error("gateway not connected");
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) throw new Error("gateway not connected");
 		const id = randomUUID();
 		const frame = {
 			type: "req",
@@ -31183,7 +31194,7 @@ async function connectWahaWebSocket(candidates, opts) {
 		for (const [key, value] of opts.queryParams ?? []) url.searchParams.append(key, value);
 		try {
 			return await new Promise((resolve, reject) => {
-				const socket = new WebSocket(url.toString(), { headers: opts.headers });
+				const socket = new WebSocket$1(url.toString(), { headers: opts.headers });
 				const cleanup = () => {
 					socket.removeListener("open", onOpen);
 					socket.removeListener("error", onError);
@@ -31333,6 +31344,13 @@ const activeWahaLogins = /* @__PURE__ */ new Map();
 function readString(input) {
 	return typeof input === "string" && input.trim() ? input : void 0;
 }
+function decodeWsMessageData(input) {
+	if (typeof input === "string") return input;
+	if (input instanceof Buffer) return input.toString("utf8");
+	if (input instanceof ArrayBuffer) return Buffer.from(input).toString("utf8");
+	if (Array.isArray(input) && input.every((chunk) => chunk instanceof Buffer)) return Buffer.concat(input).toString("utf8");
+	return null;
+}
 function resolveWahaConfig(account) {
 	const baseUrl = account.waha?.baseUrl?.trim();
 	if (!baseUrl) throw new Error(`WAHA transport selected for account "${account.accountId}" but channels.whatsapp.waha.baseUrl is missing.`);
@@ -31372,20 +31390,13 @@ async function tryStartSession(account) {
 		"Content-Type": "application/json"
 	};
 	if (apiKey) headers["X-Api-Key"] = apiKey;
-	const attempts = [
-		{
-			path: "/api/sessions/start",
-			body: { name: session }
-		},
-		{
-			path: "/api/session/start",
-			body: { name: session }
-		},
-		{
-			path: `/api/sessions/${encodeURIComponent(session)}/start`,
-			body: {}
-		}
-	];
+	const attempts = [{
+		path: "/api/sessions/start",
+		body: { name: session }
+	}, {
+		path: `/api/sessions/${encodeURIComponent(session)}/start`,
+		body: {}
+	}];
 	for (const attempt of attempts) try {
 		const response = await fetch(`${baseUrl}${attempt.path}`, {
 			method: "POST",
@@ -31399,11 +31410,9 @@ async function tryStartSession(account) {
 }
 async function listSessions(account) {
 	const { baseUrl, apiKey } = resolveWahaConfig(account);
-	const url = new URL(`${baseUrl}/api/sessions`);
-	if (apiKey) url.searchParams.set("x-api-key", apiKey);
 	const headers = { Accept: "application/json" };
 	if (apiKey) headers["X-Api-Key"] = apiKey;
-	const response = await fetch(url.toString(), { headers });
+	const response = await fetch(`${baseUrl}/api/sessions`, { headers });
 	if (!response.ok) return [];
 	try {
 		const parsed = await response.json();
@@ -31464,6 +31473,11 @@ function createWaitPromise() {
 }
 async function startWahaLoginWithQr(params) {
 	const { account, runtime } = params;
+	if (params.mode === "request-code") return await requestWahaAuthCode({
+		account,
+		runtime,
+		phoneNumber: params.phoneNumber
+	});
 	const existing = activeWahaLogins.get(account.accountId);
 	if (existing && isLoginFresh$1(existing)) {
 		if (existing.connected) return { message: "✅ WAHA session is already connected." };
@@ -31501,7 +31515,9 @@ async function startWahaLoginWithQr(params) {
 	ws.on("message", async (raw) => {
 		let envelope = null;
 		try {
-			envelope = JSON.parse(String(raw));
+			const decoded = decodeWsMessageData(raw);
+			if (!decoded) return;
+			envelope = JSON.parse(decoded);
 		} catch {
 			return;
 		}
@@ -31574,12 +31590,77 @@ async function startWahaLoginWithQr(params) {
 	}
 	return { message: "Waiting for WAHA QR event. Keep WAHA running and try wait." };
 }
+function buildAuthHeaders(apiKey) {
+	const headers = {};
+	if (apiKey) headers["X-Api-Key"] = apiKey;
+	return headers;
+}
+async function parseJsonResponse(response) {
+	try {
+		return await response.json();
+	} catch {
+		return null;
+	}
+}
+function compactJson(value, max = 220) {
+	try {
+		const text = JSON.stringify(value);
+		if (text.length <= max) return text;
+		return `${text.slice(0, max)}...`;
+	} catch {
+		return String(value);
+	}
+}
+async function requestWahaAuthCode(params) {
+	const { baseUrl, session, apiKey } = resolveWahaConfig(params.account);
+	const phoneNumber = params.phoneNumber?.trim();
+	if (!phoneNumber) return { message: "Phone number is required for WAHA request-code." };
+	const headers = {
+		Accept: "application/json",
+		"Content-Type": "application/json",
+		...buildAuthHeaders(apiKey)
+	};
+	const body = {
+		phoneNumber,
+		method: null
+	};
+	const url = `${baseUrl}/api/${encodeURIComponent(session)}/auth/request-code`;
+	let response;
+	try {
+		response = await fetch(url, {
+			method: "POST",
+			headers,
+			body: JSON.stringify(body)
+		});
+	} catch (err) {
+		return { message: `WAHA request-code failed: ${String(err)}` };
+	}
+	const payload = await parseJsonResponse(response);
+	if (response.ok) {
+		const code = readString(payload?.code);
+		if (code) return { message: `Pairing code requested. Use this code in WhatsApp: ${code}` };
+		return { message: readString(payload?.message) ?? "Pairing code requested from WAHA." };
+	}
+	const detail = readString(payload?.message) ?? compactJson(payload);
+	return { message: `WAHA request-code failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}` };
+}
 async function waitForWahaLogin(params) {
 	const login = activeWahaLogins.get(params.account.accountId);
-	if (!login) return {
-		connected: false,
-		message: "No active WAHA login in progress."
-	};
+	if (!login) {
+		const status = await getSessionStatus(params.account).catch(() => null);
+		if (isConnectedStatus(status ?? void 0)) return {
+			connected: true,
+			message: "✅ Linked! WhatsApp is ready."
+		};
+		if (isFailureStatus(status ?? void 0)) return {
+			connected: false,
+			message: `WAHA login failed: session status ${status}`
+		};
+		return {
+			connected: false,
+			message: `No active WAHA login in progress.${status ? ` (current status: ${status})` : ""}`
+		};
+	}
 	if (!isLoginFresh$1(login)) {
 		resetWahaLogin(params.account.accountId);
 		return {
@@ -31709,9 +31790,12 @@ async function startWebLoginWithQr(opts = {}) {
 		account,
 		timeoutMs: opts.timeoutMs,
 		force: opts.force,
+		mode: opts.mode,
+		phoneNumber: opts.phoneNumber,
 		runtime,
 		verbose: opts.verbose
 	});
+	if (opts.mode === "request-code") return { message: "Request code is only supported when WhatsApp transport is WAHA." };
 	assertBaileysTransport(account.transport, "QR login");
 	const hasWeb = await webAuthExists(account.authDir);
 	const selfId = readWebSelfId(account.authDir);

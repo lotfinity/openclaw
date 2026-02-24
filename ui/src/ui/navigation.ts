@@ -4,7 +4,7 @@ export const TAB_GROUPS = [
   { label: "Chat", tabs: ["chat"] },
   {
     label: "Control",
-    tabs: ["overview", "channels", "instances", "sessions", "usage", "cron"],
+    tabs: ["overview", "channels", "sessions", "cron"],
   },
   { label: "Agent", tabs: ["agents", "skills", "nodes"] },
   { label: "Settings", tabs: ["config", "debug", "logs"] },
@@ -170,7 +170,7 @@ export function titleForTab(tab: Tab) {
     case "usage":
       return "Usage";
     case "cron":
-      return "Cron Jobs";
+      return "Reminders";
     case "skills":
       return "Skills";
     case "nodes":
@@ -203,7 +203,7 @@ export function subtitleForTab(tab: Tab) {
     case "usage":
       return "";
     case "cron":
-      return "Schedule wakeups and recurring agent runs.";
+      return "Schedule reminders and recurring agent runs.";
     case "skills":
       return "Manage skill availability and API key injection.";
     case "nodes":

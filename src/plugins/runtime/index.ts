@@ -191,6 +191,20 @@ const waitForWebLoginLazy: PluginRuntime["channel"]["whatsapp"]["waitForWebLogin
   return waitForWebLogin(...args);
 };
 
+const stopWahaSessionLazy: PluginRuntime["channel"]["whatsapp"]["stopWahaSession"] = async (
+  ...args
+) => {
+  const { stopWahaSession } = await import("../../web/transports/waha/login.js");
+  return stopWahaSession(...args);
+};
+
+const logoutWahaSessionLazy: PluginRuntime["channel"]["whatsapp"]["logoutWahaSession"] = async (
+  ...args
+) => {
+  const { logoutWahaSession } = await import("../../web/transports/waha/login.js");
+  return logoutWahaSession(...args);
+};
+
 const monitorWebChannelLazy: PluginRuntime["channel"]["whatsapp"]["monitorWebChannel"] = async (
   ...args
 ) => {
@@ -390,6 +404,8 @@ export function createPluginRuntime(): PluginRuntime {
         loginWeb: loginWebLazy,
         startWebLoginWithQr: startWebLoginWithQrLazy,
         waitForWebLogin: waitForWebLoginLazy,
+        stopWahaSession: stopWahaSessionLazy,
+        logoutWahaSession: logoutWahaSessionLazy,
         resolveTransportId: resolveWhatsAppTransportId,
         monitorWebChannel: monitorWebChannelLazy,
         handleWhatsAppAction: handleWhatsAppActionLazy,

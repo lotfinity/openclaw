@@ -1,7 +1,10 @@
 import type { OpenClawApp } from "./app.ts";
 import type { AgentsListResult } from "./types.ts";
+import { applyChannelsTabDefaults } from "./app-channels.ts";
 import { refreshChat } from "./app-chat.ts";
 import {
+  startChannelsPolling,
+  stopChannelsPolling,
   startLogsPolling,
   stopLogsPolling,
   startDebugPolling,
@@ -157,6 +160,11 @@ export function setTab(host: SettingsHost, next: Tab) {
     startLogsPolling(host as unknown as Parameters<typeof startLogsPolling>[0]);
   } else {
     stopLogsPolling(host as unknown as Parameters<typeof stopLogsPolling>[0]);
+  }
+  if (next === "channels") {
+    startChannelsPolling(host as unknown as Parameters<typeof startChannelsPolling>[0]);
+  } else {
+    stopChannelsPolling(host as unknown as Parameters<typeof stopChannelsPolling>[0]);
   }
   if (next === "debug") {
     startDebugPolling(host as unknown as Parameters<typeof startDebugPolling>[0]);
@@ -421,6 +429,7 @@ export async function loadChannelsTab(host: SettingsHost) {
     loadConfigSchema(host as unknown as OpenClawApp),
     loadConfig(host as unknown as OpenClawApp),
   ]);
+  applyChannelsTabDefaults(host as unknown as OpenClawApp);
 }
 
 export async function loadCron(host: SettingsHost) {

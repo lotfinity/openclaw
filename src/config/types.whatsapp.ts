@@ -28,7 +28,7 @@ export type WhatsAppWahaConfig = {
 export type WhatsAppConfig = {
   /** Optional per-account WhatsApp configuration (multi-account). */
   accounts?: Record<string, WhatsAppAccountConfig>;
-  /** WhatsApp backend transport implementation. Default: "baileys". */
+  /** WhatsApp backend transport implementation. Default: "waha". */
   transport?: WhatsAppTransportId;
   /** Optional provider capability tags used for agent/runtime guidance. */
   capabilities?: string[];

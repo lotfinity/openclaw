@@ -24,6 +24,7 @@ import { channelEnabled, renderChannelAccountCount } from "./channels.shared.ts"
 import { renderSignalCard } from "./channels.signal.ts";
 import { renderSlackCard } from "./channels.slack.ts";
 import { renderTelegramCard } from "./channels.telegram.ts";
+import { renderWebsiteWidgetCard } from "./channels.website-widget.ts";
 import { renderWhatsAppCard } from "./channels.whatsapp.ts";
 
 export function renderChannels(props: ChannelsProps) {
@@ -49,22 +50,45 @@ export function renderChannels(props: ChannelsProps) {
       }
       return a.order - b.order;
     });
+  const primaryOrder: ChannelKey[] = ["whatsapp", "telegram"];
+  const orderedKeys = orderedChannels.map((entry) => entry.key);
+  const primaryKeys = primaryOrder.filter((key) => orderedKeys.includes(key));
+  const remainingKeys = orderedKeys.filter((key) => !primaryKeys.includes(key));
+  const channelData: ChannelsChannelData = {
+    whatsapp,
+    telegram,
+    discord,
+    googlechat,
+    slack,
+    signal,
+    imessage,
+    nostr,
+    channelAccounts: props.snapshot?.channelAccounts ?? null,
+  };
 
   return html`
     <section class="grid grid-cols-2">
-      ${orderedChannels.map((channel) =>
-        renderChannel(channel.key, props, {
-          whatsapp,
-          telegram,
-          discord,
-          googlechat,
-          slack,
-          signal,
-          imessage,
-          nostr,
-          channelAccounts: props.snapshot?.channelAccounts ?? null,
-        }),
-      )}
+      ${primaryKeys.map((key) => renderChannel(key, props, channelData))}
+    </section>
+
+    ${renderWebsiteWidgetCard({
+      connected: props.connected,
+      form: props.websiteWidgetForm,
+      probe: props.websiteWidgetProbe,
+      snippetInput: props.websiteWidgetSnippetInput,
+      snippetMessage: props.websiteWidgetSnippetMessage,
+      snippetError: props.websiteWidgetSnippetError,
+      previewNonce: props.websiteWidgetPreviewNonce,
+      onFieldChange: props.onWebsiteWidgetFieldChange,
+      onProbe: props.onWebsiteWidgetProbe,
+      onSnippetInputChange: props.onWebsiteWidgetSnippetInputChange,
+      onSnippetApply: props.onWebsiteWidgetSnippetApply,
+      onSnippetReset: props.onWebsiteWidgetSnippetReset,
+      onPreviewReload: props.onWebsiteWidgetPreviewReload,
+    })}
+
+    <section class="grid grid-cols-2">
+      ${remainingKeys.map((key) => renderChannel(key, props, channelData))}
     </section>
 
     <section class="card" style="margin-top: 18px;">

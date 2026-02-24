@@ -1,8 +1,10 @@
 import type { Tab } from "./navigation.ts";
 import { connectGateway } from "./app-gateway.ts";
 import {
+  startChannelsPolling,
   startLogsPolling,
   startNodesPolling,
+  stopChannelsPolling,
   stopLogsPolling,
   stopNodesPolling,
   startDebugPolling,
@@ -32,6 +34,7 @@ type LifecycleHost = {
   logsEntries: unknown[];
   popStateHandler: () => void;
   topbarObserver: ResizeObserver | null;
+  channelsPollInterval: number | null;
 };
 
 export function handleConnected(host: LifecycleHost) {
@@ -46,6 +49,9 @@ export function handleConnected(host: LifecycleHost) {
   if (host.tab === "logs") {
     startLogsPolling(host as unknown as Parameters<typeof startLogsPolling>[0]);
   }
+  if (host.tab === "channels") {
+    startChannelsPolling(host as unknown as Parameters<typeof startChannelsPolling>[0]);
+  }
   if (host.tab === "debug") {
     startDebugPolling(host as unknown as Parameters<typeof startDebugPolling>[0]);
   }
@@ -59,6 +65,7 @@ export function handleDisconnected(host: LifecycleHost) {
   window.removeEventListener("popstate", host.popStateHandler);
   stopNodesPolling(host as unknown as Parameters<typeof stopNodesPolling>[0]);
   stopLogsPolling(host as unknown as Parameters<typeof stopLogsPolling>[0]);
+  stopChannelsPolling(host as unknown as Parameters<typeof stopChannelsPolling>[0]);
   stopDebugPolling(host as unknown as Parameters<typeof stopDebugPolling>[0]);
   detachThemeListener(host as unknown as Parameters<typeof detachThemeListener>[0]);
   host.topbarObserver?.disconnect();

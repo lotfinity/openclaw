@@ -3,8 +3,8 @@ import type { OpenClawConfig } from "../../config/config.js";
 import { resolveWhatsAppTransportId } from "./resolve.js";
 
 describe("resolveWhatsAppTransportId", () => {
-  it("defaults to baileys", () => {
-    expect(resolveWhatsAppTransportId({} as OpenClawConfig)).toBe("baileys");
+  it("defaults to waha", () => {
+    expect(resolveWhatsAppTransportId({} as OpenClawConfig)).toBe("waha");
   });
 
   it("uses channel-level transport when present", () => {

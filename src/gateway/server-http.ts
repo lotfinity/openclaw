@@ -55,6 +55,8 @@ import { isPrivateOrLoopbackAddress, resolveGatewayClientIp } from "./net.js";
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
+import { handleWebsiteAssistTelegramHttpRequest } from "./website-assist-telegram.js";
+import { handleWebsiteWidgetHttpRequest } from "./website-widget.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
 type HookAuthFailure = { count: number; windowStartedAtMs: number };
@@ -496,6 +498,12 @@ export function createGatewayHttpServer(opts: {
         return;
       }
       if (await handleSlackHttpRequest(req, res)) {
+        return;
+      }
+      if (handleWebsiteWidgetHttpRequest(req, res, { basePath: controlUiBasePath })) {
+        return;
+      }
+      if (await handleWebsiteAssistTelegramHttpRequest(req, res)) {
         return;
       }
       if (handlePluginRequest) {

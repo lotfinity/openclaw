@@ -510,22 +510,33 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
         },
       );
     },
-    loginWithQrStart: async ({ accountId, force, timeoutMs, verbose }) =>
+    loginWithQrStart: async ({ accountId, force, timeoutMs, verbose, mode, phoneNumber }) =>
       await getWhatsAppRuntime().channel.whatsapp.startWebLoginWithQr({
         accountId,
         force,
         timeoutMs,
         verbose,
+        mode,
+        phoneNumber,
       }),
     loginWithQrWait: async ({ accountId, timeoutMs }) =>
       await getWhatsAppRuntime().channel.whatsapp.waitForWebLogin({ accountId, timeoutMs }),
     logoutAccount: async ({ account, runtime }) => {
-      const cleared = await getWhatsAppRuntime().channel.whatsapp.logoutWeb({
+      let remoteLoggedOut = false;
+      if (account.transport === "waha") {
+        const logoutResult = await getWhatsAppRuntime().channel.whatsapp.logoutWahaSession({
+          account,
+        });
+        remoteLoggedOut = logoutResult.loggedOut;
+        runtime.log?.(logoutResult.message);
+      }
+      const localCleared = await getWhatsAppRuntime().channel.whatsapp.logoutWeb({
         authDir: account.authDir,
         isLegacyAuthDir: account.isLegacyAuthDir,
         runtime,
       });
-      return { cleared, loggedOut: cleared };
+      const cleared = remoteLoggedOut || localCleared;
+      return { cleared, loggedOut: cleared, remoteLoggedOut, localCleared };
     },
   },
 };

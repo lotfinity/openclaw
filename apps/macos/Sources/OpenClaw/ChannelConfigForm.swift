@@ -70,7 +70,10 @@ struct ConfigSchemaForm: View {
                     }
                     ForEach(sortedKeys, id: \ .self) { key in
                         if let child = properties[key] {
-                            self.renderNode(child, path: path + [.key(key)])
+                            let childPath = path + [.key(key)]
+                            if self.shouldRender(path: childPath) {
+                                self.renderNode(child, path: childPath)
+                            }
                         }
                     }
                     if schema.allowsAdditionalProperties {
@@ -98,6 +101,49 @@ struct ConfigSchemaForm: View {
                         .foregroundStyle(.secondary)
                 })
         }
+    }
+
+    private func shouldRender(path: ConfigPath) -> Bool {
+        let keys = path.compactMap { segment -> String? in
+            if case let .key(value) = segment { return value }
+            return nil
+        }
+        guard keys.count >= 2, keys[0] == "channels", keys[1] == "whatsapp" else {
+            return true
+        }
+
+        let isWahaPath = keys.contains("waha")
+        let isAccountScoped = keys.count >= 4 && keys[2] == "accounts"
+        let hasAccounts = self.hasWhatsAppAccounts()
+
+        // WAHA-only WhatsApp UI: never show transport selector or Baileys authDir.
+        if keys.count >= 3, keys[2] == "transport" {
+            return false
+        }
+        if keys.last == "authDir" {
+            return false
+        }
+
+        // Keep one WAHA settings block: account-level when accounts exist, otherwise root-level.
+        if !isAccountScoped && hasAccounts, keys.count >= 3, keys[2] == "waha" {
+            return false
+        }
+
+        if isWahaPath {
+            return true
+        }
+
+        return true
+    }
+
+    private func hasWhatsAppAccounts() -> Bool {
+        guard let accounts = self.store.configValue(
+            at: [.key("channels"), .key("whatsapp"), .key("accounts")]
+        ) as? [String: Any]
+        else {
+            return false
+        }
+        return !accounts.isEmpty
     }
 
     @ViewBuilder

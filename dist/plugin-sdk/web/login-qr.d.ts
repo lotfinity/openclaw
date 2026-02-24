@@ -4,6 +4,8 @@ export declare function startWebLoginWithQr(opts?: {
     timeoutMs?: number;
     force?: boolean;
     accountId?: string;
+    mode?: "qr" | "request-code";
+    phoneNumber?: string;
     runtime?: RuntimeEnv;
 }): Promise<{
     qrDataUrl?: string;
@@ -15,5 +17,12 @@ export declare function waitForWebLogin(opts?: {
     accountId?: string;
 }): Promise<{
     connected: boolean;
+    message: string;
+}>;
+export declare function getWebLoginScreenshot(opts?: {
+    accountId?: string;
+    runtime?: RuntimeEnv;
+}): Promise<{
+    imageDataUrl?: string;
     message: string;
 }>;

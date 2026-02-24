@@ -27,6 +27,46 @@ function jsonValue(value: unknown): string {
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function shouldRenderFieldPath(
+  path: Array<string | number>,
+  channelRoot: Record<string, unknown> | null,
+): boolean {
+  const keys = path.filter((segment): segment is string => typeof segment === "string");
+  if (keys.length < 2 || keys[0] !== "channels" || keys[1] !== "whatsapp") {
+    return true;
+  }
+  const last = keys.at(-1) ?? "";
+  const isWahaPath = keys.includes("waha");
+  const isAccountScoped = keys.length >= 4 && keys[2] === "accounts";
+  const accounts = channelRoot ? asRecord(channelRoot.accounts) : null;
+  const hasAccounts = Boolean(accounts && Object.keys(accounts).length > 0);
+
+  // WAHA-only WhatsApp UI: never show transport selector or Baileys authDir.
+  if (keys.length >= 3 && keys[2] === "transport") {
+    return false;
+  }
+  if (last === "authDir") {
+    return false;
+  }
+
+  // Keep one WAHA settings block: account-level when accounts exist, otherwise root-level.
+  if (!isAccountScoped && hasAccounts && keys.length >= 3 && keys[2] === "waha") {
+    return false;
+  }
+
+  if (isWahaPath) {
+    return true;
+  }
+  return true;
+}
+
 // SVG Icons as template literals
 const icons = {
   chevronDown: html`
@@ -102,6 +142,7 @@ export function renderNode(params: {
   unsupported: Set<string>;
   disabled: boolean;
   showLabel?: boolean;
+  channelRoot?: Record<string, unknown> | null;
   onPatch: (path: Array<string | number>, value: unknown) => void;
 }): TemplateResult | typeof nothing {
   const { schema, value, path, hints, unsupported, disabled, onPatch } = params;
@@ -463,6 +504,7 @@ function renderObject(params: {
   unsupported: Set<string>;
   disabled: boolean;
   showLabel?: boolean;
+  channelRoot?: Record<string, unknown> | null;
   onPatch: (path: Array<string | number>, value: unknown) => void;
 }): TemplateResult {
   const { schema, value, path, hints, unsupported, disabled, onPatch } = params;
@@ -477,6 +519,9 @@ function renderObject(params: {
       : {};
   const props = schema.properties ?? {};
   const entries = Object.entries(props);
+  const channelRoot =
+    params.channelRoot ??
+    (path.length === 2 && path[0] === "channels" && path[1] === "whatsapp" ? asRecord(obj) : null);
 
   // Sort by hint order
   const sorted = entries.toSorted((a, b) => {
@@ -496,17 +541,22 @@ function renderObject(params: {
   if (path.length === 1) {
     return html`
       <div class="cfg-fields">
-        ${sorted.map(([propKey, node]) =>
-          renderNode({
+        ${sorted.map(([propKey, node]) => {
+          const childPath = [...path, propKey];
+          if (!shouldRenderFieldPath(childPath, channelRoot)) {
+            return nothing;
+          }
+          return renderNode({
             schema: node,
             value: obj[propKey],
-            path: [...path, propKey],
+            path: childPath,
             hints,
             unsupported,
             disabled,
+            channelRoot,
             onPatch,
-          }),
-        )}
+          });
+        })}
         ${
           allowExtra
             ? renderMapField({
@@ -517,6 +567,7 @@ function renderObject(params: {
                 unsupported,
                 disabled,
                 reservedKeys: reserved,
+                channelRoot,
                 onPatch,
               })
             : nothing
@@ -534,17 +585,22 @@ function renderObject(params: {
       </summary>
       ${help ? html`<div class="cfg-object__help">${help}</div>` : nothing}
       <div class="cfg-object__content">
-        ${sorted.map(([propKey, node]) =>
-          renderNode({
+        ${sorted.map(([propKey, node]) => {
+          const childPath = [...path, propKey];
+          if (!shouldRenderFieldPath(childPath, channelRoot)) {
+            return nothing;
+          }
+          return renderNode({
             schema: node,
             value: obj[propKey],
-            path: [...path, propKey],
+            path: childPath,
             hints,
             unsupported,
             disabled,
+            channelRoot,
             onPatch,
-          }),
-        )}
+          });
+        })}
         ${
           allowExtra
             ? renderMapField({
@@ -555,6 +611,7 @@ function renderObject(params: {
                 unsupported,
                 disabled,
                 reservedKeys: reserved,
+                channelRoot,
                 onPatch,
               })
             : nothing
@@ -572,6 +629,7 @@ function renderArray(params: {
   unsupported: Set<string>;
   disabled: boolean;
   showLabel?: boolean;
+  channelRoot?: Record<string, unknown> | null;
   onPatch: (path: Array<string | number>, value: unknown) => void;
 }): TemplateResult {
   const { schema, value, path, hints, unsupported, disabled, onPatch } = params;
@@ -641,6 +699,7 @@ function renderArray(params: {
                   hints,
                   unsupported,
                   disabled,
+                  channelRoot: params.channelRoot ?? null,
                   showLabel: false,
                   onPatch,
                 })}
@@ -663,6 +722,7 @@ function renderMapField(params: {
   unsupported: Set<string>;
   disabled: boolean;
   reservedKeys: Set<string>;
+  channelRoot?: Record<string, unknown> | null;
   onPatch: (path: Array<string | number>, value: unknown) => void;
 }): TemplateResult {
   const { schema, value, path, hints, unsupported, disabled, reservedKeys, onPatch } = params;
@@ -760,6 +820,7 @@ function renderMapField(params: {
                           hints,
                           unsupported,
                           disabled,
+                          channelRoot: params.channelRoot ?? null,
                           showLabel: false,
                           onPatch,
                         })
